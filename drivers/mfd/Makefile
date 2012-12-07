@@ -112,3 +112,14 @@ obj-$(CONFIG_MFD_MAX8907C)	+= max8907c-adc.o
 obj-$(CONFIG_MFD_MAX77663)	+= max77663-core.o
 obj-$(CONFIG_MFD_RICOH583)	+= ricoh583.o
 obj-$(CONFIG_MFD_RC5T583)	+= rc5t583.o rc5t583-irq.o
+
+cpcap-objs			:= cpcap-core.o \
+				   cpcap-irq.o \
+				   cpcap-regacc.o \
+				   cpcap-key.o \
+				   cpcap-usb-det.o \
+				   cpcap-adc.o \
+				   cpcap-uc.o \
+				   cpcap-3mm5.o
+
+obj-$(CONFIG_MFD_CPCAP)		+= cpcap.o
