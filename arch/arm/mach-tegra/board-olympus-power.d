@@ -1,107 +1,175 @@
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-#include <linux/dma-mapping.h>
-#include <linux/pda_power.h>
-#include <linux/io.h>
-#include <linux/spi/cpcap.h>
-#include <linux/spi/spi.h>
-#include <linux/delay.h>
-#include <linux/reboot.h>
-#include <linux/rtc.h>
+/*
+ * Copyright (C) 2010 Motorola, Inc.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+ * 02111-1307, USA
+ */
 #include <linux/gpio.h>
-
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <asm/mach/time.h>
-#include <asm/setup.h>
-#include <asm/bootinfo.h>
-
-#include <mach/iomap.h>
-#include <mach/irqs.h>
-/*#include <mach/nvrm_linux.h>*/
+#include <linux/i2c.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/leds-ld-cpcap.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/radio_ctrl/mdm6600_ctrl.h>
+#include <linux/reboot.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
-#include <linux/usb/android_composite.h>
-#include <linux/gpio.h>
-#include <linux/cpcap-accy.h>
-/*#include <nvrm_module.h>*/
-/*#include <nvrm_boot.h>*/
-/*#include <nvodm_services.h>*/
-#include <linux/mdm_ctrl.h>
+/* STI-OLY we don't need it 
+#include <linux/radio_ctrl/wrigley_ctrl.h>
 
+#include <linux/regulator/max8649.h>
+
+#include <linux/l3g4200d.h>
+*/
+#include <linux/spi/cpcap.h>
+#include <linux/spi/cpcap-regbits.h>
+#include <linux/spi/spi.h>
+
+
+#include <mach/gpio.h>
+#include <mach/iomap.h>
+#include <mach/irqs.h>
+
+#include "board-olympus.h"
 #include "gpio-names.h"
-#include "board.h"
-#include "hwrev.h"
 
-#include "board-mot.h"
+/* For the PWR + VOL UP reset, CPCAP can perform a hard or a soft reset. A hard
+ * reset will reset the entire system, where a soft reset will reset only the
+ * T20. Uncomment this line to use soft resets (should not be enabled on
+ * production builds). */
+/* #define ENABLE_SOFT_RESET_DEBUGGING */
 
-#define PWRUP_FACTORY_CABLE         0x00000020 /* Bit 5  */
-#define PWRUP_INVALID               0xFFFFFFFF
+static struct cpcap_device *cpcap_di;
 
-extern void tegra_machine_restart(char mode, const char *cmd);
-static int disable_rtc_alarms(struct device *dev, void *cnt);
-
-void mot_system_power_off(void)
+static int cpcap_validity_reboot(struct notifier_block *this,
+				 unsigned long code, void *cmd)
 {
-	/* If there's external power, let's restart instead ...
-	   except for the case when phone was powered on with factory cable
-	   and thus has to stay powered off after Turn-Off TCMD INKVSSW-994 */
-	if (cpcap_misc_is_ext_power() &&
-	   !((bi_powerup_reason() & PWRUP_FACTORY_CABLE) &&
-	     (bi_powerup_reason() != PWRUP_INVALID)) )
-	{
-		printk("External power detected- rebooting\r\n");
-		cpcap_misc_clear_power_handoff_info();
-		tegra_machine_restart(0,"");
-		while(1);
+	int ret = -1;
+	int result = NOTIFY_DONE;
+	char *mode = cmd;
+
+	dev_info(&(cpcap_di->spi->dev), "Saving power down reason.\n");
+
+	if (code == SYS_RESTART) {
+		if (mode != NULL && !strncmp("outofcharge", mode, 12)) {
+			/* Set the outofcharge bit in the cpcap */
+			ret = cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1,
+						 CPCAP_BIT_OUT_CHARGE_ONLY,
+						 CPCAP_BIT_OUT_CHARGE_ONLY);
+			if (ret) {
+				dev_err(&(cpcap_di->spi->dev),
+					"outofcharge cpcap set failure.\n");
+				result = NOTIFY_BAD;
+			}
+			/* Set the soft reset bit in the cpcap */
+			cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1,
+					   CPCAP_BIT_SOFT_RESET,
+					   CPCAP_BIT_SOFT_RESET);
+			if (ret) {
+				dev_err(&(cpcap_di->spi->dev),
+					"reset cpcap set failure.\n");
+				result = NOTIFY_BAD;
+			}
+		}
+
+		/* Check if we are starting recovery mode */
+		if (mode != NULL && !strncmp("recovery", mode, 9)) {
+			/* Set the fota (recovery mode) bit in the cpcap */
+			ret = cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1,
+				CPCAP_BIT_FOTA_MODE, CPCAP_BIT_FOTA_MODE);
+			if (ret) {
+				dev_err(&(cpcap_di->spi->dev),
+					"Recovery cpcap set failure.\n");
+				result = NOTIFY_BAD;
+			}
+		} else {
+			/* Set the fota (recovery mode) bit in the cpcap */
+			ret = cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1, 0,
+						 CPCAP_BIT_FOTA_MODE);
+			if (ret) {
+				dev_err(&(cpcap_di->spi->dev),
+					"Recovery cpcap clear failure.\n");
+				result = NOTIFY_BAD;
+			}
+		}
+		/* Check if we are going into fast boot mode */
+		if (mode != NULL && !strncmp("bootloader", mode, 11)) {
+			/* Set the bootmode bit in the cpcap */
+			ret = cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1,
+				CPCAP_BIT_BOOT_MODE, CPCAP_BIT_BOOT_MODE);
+			if (ret) {
+				dev_err(&(cpcap_di->spi->dev),
+					"Boot mode cpcap set failure.\n");
+				result = NOTIFY_BAD;
+			}
+		}
+	} else {
+		ret = cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1,
+					 0,
+					 CPCAP_BIT_OUT_CHARGE_ONLY);
+		if (ret) {
+			dev_err(&(cpcap_di->spi->dev),
+				"outofcharge cpcap set failure.\n");
+			result = NOTIFY_BAD;
+		}
+
+		/* Clear the soft reset bit in the cpcap */
+		ret = cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1, 0,
+					 CPCAP_BIT_SOFT_RESET);
+		if (ret) {
+			dev_err(&(cpcap_di->spi->dev),
+				"SW Reset cpcap set failure.\n");
+			result = NOTIFY_BAD;
+		}
+		/* Clear the fota (recovery mode) bit in the cpcap */
+		ret = cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1, 0,
+					 CPCAP_BIT_FOTA_MODE);
+		if (ret) {
+			dev_err(&(cpcap_di->spi->dev),
+				"Recovery cpcap clear failure.\n");
+			result = NOTIFY_BAD;
+		}
 	}
 
-	printk(KERN_ERR "%s(): Powering down system\n", __func__);
-
-	/* Disable RTC alarms to prevent unwanted powerups */
-	class_for_each_device(rtc_class, NULL, NULL, disable_rtc_alarms);
-
-	/* Disable powercut detection before power off */
-	cpcap_disable_powercut();
-
-	/* We need to set the WDI bit low to power down normally */
-	if (HWREV_TYPE_IS_PORTABLE(system_rev) &&
-	    HWREV_REV(system_rev) >= HWREV_REV_1 &&
-	    HWREV_REV(system_rev) <= HWREV_REV_1C )
-	{
-		/* Olympus P1 */
-		gpio_request(TEGRA_GPIO_PT4, "P1 WDI");
-		gpio_direction_output(TEGRA_GPIO_PT4, 1);
-		gpio_set_value(TEGRA_GPIO_PT4, 0);
-	}
-	else
-	{
-		/* Olympus Mortable, P0, P2 and later */
-		gpio_request(TEGRA_GPIO_PV7, "P2 WDI");
-		gpio_direction_output(TEGRA_GPIO_PV7, 1);
-		gpio_set_value(TEGRA_GPIO_PV7, 0);
+	/* Always clear the kpanic bit */
+	ret = cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1,
+				 0, CPCAP_BIT_AP_KERNEL_PANIC);
+	if (ret) {
+		dev_err(&(cpcap_di->spi->dev),
+			"Clear kernel panic bit failure.\n");
+		result = NOTIFY_BAD;
 	}
 
-	mdelay(500);
-	printk("Power-off failed (Factory cable inserted?), rebooting\r\n");
-	tegra_machine_restart(0,"");
+	return result;
 }
 
 static int is_olympus_ge_p0(struct cpcap_device *cpcap)
 {
-	return 1;
+		return 1;
 }
 
 static int is_olympus_ge_p3(struct cpcap_device *cpcap)
 {
 	if (HWREV_TYPE_IS_FINAL(system_rev) ||
-		(HWREV_TYPE_IS_PORTABLE(system_rev) &&
-		 (HWREV_REV(system_rev) >= HWREV_REV_3))) {
-		return 1;
+			(HWREV_TYPE_IS_PORTABLE(system_rev) &&
+			 (HWREV(system_rev) >= OLYMPUS_REVISION_3))) {
+			return 1;
 	}
 	return 0;
 }
@@ -123,7 +191,138 @@ int is_cpcap_eq_3_1(struct cpcap_device *cpcap)
 	return cpcap_get_revision(cpcap) == CPCAP_REVISION_3_1;
 }
 
-struct cpcap_spi_init_data tegra_cpcap_spi_init[] = {
+static struct notifier_block validity_reboot_notifier = {
+	.notifier_call = cpcap_validity_reboot,
+};
+
+static int cpcap_validity_probe(struct platform_device *pdev)
+{
+	int err;
+
+	if (pdev->dev.platform_data == NULL) {
+		dev_err(&pdev->dev, "no platform_data\n");
+		return -EINVAL;
+	}
+
+	cpcap_di = pdev->dev.platform_data;
+
+	cpcap_regacc_write(cpcap_di, CPCAP_REG_VAL1,
+			   (CPCAP_BIT_AP_KERNEL_PANIC | CPCAP_BIT_SOFT_RESET),
+			   (CPCAP_BIT_AP_KERNEL_PANIC | CPCAP_BIT_SOFT_RESET));
+
+	register_reboot_notifier(&validity_reboot_notifier);
+
+	/* CORE_PWR_REQ is only properly connected on P1 hardware and later */
+	if (olympus_revision() >= OLYMPUS_REVISION_1) {
+		err = cpcap_uc_start(cpcap_di, CPCAP_MACRO_14);
+		dev_info(&pdev->dev, "Started macro 14: %d\n", err);
+	} else
+		dev_info(&pdev->dev, "Not starting macro 14 (no hw support)\n");
+
+	/* Enable workaround to allow soft resets to work */
+	cpcap_regacc_write(cpcap_di, CPCAP_REG_PGC,
+			   CPCAP_BIT_SYS_RST_MODE, CPCAP_BIT_SYS_RST_MODE);
+	err = cpcap_uc_start(cpcap_di, CPCAP_MACRO_15);
+	dev_info(&pdev->dev, "Started macro 15: %d\n", err);
+
+	return 0;
+}
+
+static int cpcap_validity_remove(struct platform_device *pdev)
+{
+	unregister_reboot_notifier(&validity_reboot_notifier);
+	cpcap_di = NULL;
+
+	return 0;
+}
+
+static struct platform_driver cpcap_validity_driver = {
+	.probe = cpcap_validity_probe,
+	.remove = cpcap_validity_remove,
+	.driver = {
+		.name = "cpcap_validity",
+		.owner  = THIS_MODULE,
+	},
+};
+
+static struct platform_device cpcap_validity_device = {
+	.name   = "cpcap_validity",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = NULL,
+	},
+};
+
+static struct platform_device cpcap_3mm5_device = {
+	.name   = "cpcap_3mm5",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = NULL,
+	},
+};
+
+static struct cpcap_whisper_pdata whisper_pdata = {
+	.data_gpio = TEGRA_GPIO_PV4,
+	.pwr_gpio  = TEGRA_GPIO_PT2,
+	.uartmux   = 1,
+};
+
+static struct platform_device cpcap_whisper_device = {
+	.name   = "cpcap_whisper",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = &whisper_pdata,
+	},
+};
+
+struct cpcap_leds olympus_cpcap_leds = {
+	.button_led = {
+		.button_reg = CPCAP_REG_KLC,
+		.button_mask = 0x03FF,
+		.button_on = 0xFFFF,
+		.button_off = 0x0000,
+		.regulator = "sw5",  /* set to NULL below for products with button LED on B+ */
+	},
+	.rgb_led = {
+		.rgb_on = 0x0053,
+		.regulator = "sw5",  /* set to NULL below for products with RGB LED on B+ */
+		.regulator_macro_controlled = false, /* Oly, sunfire and older etna set this true below */
+	},
+};
+
+extern struct platform_device cpcap_disp_button_led;
+extern struct platform_device cpcap_rgb_led;
+
+static struct platform_device *cpcap_devices[] = {
+	&cpcap_validity_device,
+	/* STI-OLY
+	&cpcap_notification_led,
+	&cpcap_privacy_led,*/
+	&cpcap_3mm5_device,
+};
+
+struct cpcap_spi_init_data olympus_cpcap_spi_init[] = {
+	/* STI-OLY replaced with atrix ones 	
+	{CPCAP_REG_S1C1,      0x0000},
+	{CPCAP_REG_S1C2,      0x0000},
+	{CPCAP_REG_S2C1,      0x4830},
+	{CPCAP_REG_S2C2,      0x3030},
+	{CPCAP_REG_S3C,       0x0439},
+	{CPCAP_REG_S4C1,      0x4930},
+	{CPCAP_REG_S4C2,      0x301C},
+	{CPCAP_REG_S5C,       0x0000},
+	{CPCAP_REG_S6C,       0x0000},
+	{CPCAP_REG_VRF1C,     0x0000},
+	{CPCAP_REG_VRF2C,     0x0000},
+	{CPCAP_REG_VRFREFC,   0x0000},
+	{CPCAP_REG_VAUDIOC,   0x0065},
+	{CPCAP_REG_ADCC1,     0x9000},
+	{CPCAP_REG_ADCC2,     0x4136},
+	{CPCAP_REG_USBC1,     0x1201},
+	{CPCAP_REG_USBC3,     0x7DFB},
+	{CPCAP_REG_OWDC,      0x0003},
+	{CPCAP_REG_ADLC,      0x0000},
+	*/
 	/* Set SW1 to AMS/AMS 1.025v. */
 	{CPCAP_REG_S1C1,      0x4822, NULL             },
 	/* Set SW2 to AMS/AMS 1.2v. */
@@ -159,15 +358,11 @@ struct cpcap_spi_init_data tegra_cpcap_spi_init[] = {
 	{CPCAP_REG_VRF2C,     0x0000, NULL             },
 	{CPCAP_REG_VRFREFC,   0x0000, NULL             },
 	/* Set VWLAN1 to off */
-	{CPCAP_REG_VWLAN1C,   0x0000, NULL             },
-	{CPCAP_REG_VWLAN1C,   0x0000, NULL             },
 	{CPCAP_REG_VWLAN1C,   0x0000, is_olympus_ge_p3 },
-	{CPCAP_REG_VWLAN1C,   0x0000, NULL             },
 	/* Set VWLAN1 to AMS/AMS 1.8v */
 	{CPCAP_REG_VWLAN1C,   0x0005, NULL             },
 	/* Set VWLAN2 to On/LP 3.3v. */
 	{CPCAP_REG_VWLAN2C,   0x0089, is_olympus_ge_p3 },
-	{CPCAP_REG_VWLAN2C,   0x0089, NULL             },
 	/* Set VWLAN2 to On/On 3.3v */
 	{CPCAP_REG_VWLAN2C,   0x008d, NULL             },
 	/* Set VSIMCARD to AMS/Off 2.9v. */
@@ -206,23 +401,30 @@ struct cpcap_spi_init_data tegra_cpcap_spi_init[] = {
 	{CPCAP_REG_UCC1,      0x0000, NULL             },
 };
 
-struct cpcap_leds tegra_cpcap_leds = {
-	.button_led = {
-		.button_reg = CPCAP_REG_KLC,
-		.button_mask = 0x03FF,
-		.button_on = 0xFFFF,
-		.button_off = 0x0000,
-		.regulator = "sw5",  /* set to NULL below for products with button LED on B+ */
-	},
-	.rgb_led = {
-		.rgb_on = 0x0053,
-		.regulator = "sw5",  /* set to NULL below for products with RGB LED on B+ */
-		.regulator_macro_controlled = false,
-	},
-};
-
-extern struct platform_device cpcap_disp_button_led;
-extern struct platform_device cpcap_rgb_led;
+/* STI-OLY replaced with atrix ones 	
+unsigned short cpcap_regulator_mode_values[CPCAP_NUM_REGULATORS] = {
+		
+	[CPCAP_SW2]      = 0x0800,
+	[CPCAP_SW4]      = 0x0900,
+	[CPCAP_SW5]      = 0x0022,
+	[CPCAP_VCAM]     = 0x0007,
+	[CPCAP_VCSI]     = 0x0007,
+	[CPCAP_VDAC]     = 0x0003,
+	[CPCAP_VDIG]     = 0x0005,
+	[CPCAP_VFUSE]    = 0x0080,
+	[CPCAP_VHVIO]    = 0x0002,
+	[CPCAP_VSDIO]    = 0x0002,
+	[CPCAP_VPLL]     = 0x0001,
+	[CPCAP_VRF1]     = 0x000C,
+	[CPCAP_VRF2]     = 0x0003,
+	[CPCAP_VRFREF]   = 0x0003,
+	[CPCAP_VWLAN1]   = 0x0005,
+	[CPCAP_VWLAN2]   = 0x0008,
+	[CPCAP_VSIM]     = 0x0003,
+	[CPCAP_VSIMCARD] = 0x1E00,
+	[CPCAP_VVIB]     = 0x0001,
+	[CPCAP_VUSB]     = 0x000C,
+	[CPCAP_VAUDIO]   = 0x0004, */
 
 struct cpcap_mode_value *cpcap_regulator_mode_values[] = {
 	[CPCAP_SW1] = (struct cpcap_mode_value []) {
@@ -246,10 +448,10 @@ struct cpcap_mode_value *cpcap_regulator_mode_values[] = {
 		{ 0x4909, NULL             },
 	},
 	[CPCAP_SW5] = (struct cpcap_mode_value []) {
-		{ 0x0020, NULL             },
-		{ CPCAP_REG_OFF_MODE_SEC | 0x0020, NULL             },
+		/* All versions of olympus and sunfire support shutting down SW5
+		   when binking the message LED.  Set SW5 to On/Off Secondary
+		   control when off. */
 		{ CPCAP_REG_OFF_MODE_SEC | 0x0020, is_olympus_ge_p0 },
-		{ CPCAP_REG_OFF_MODE_SEC | 0x0020, NULL             },
 		/* On/Off */
 		{ 0x0020, NULL             },
 	},
@@ -299,17 +501,13 @@ struct cpcap_mode_value *cpcap_regulator_mode_values[] = {
 	},
 	[CPCAP_VWLAN1] = (struct cpcap_mode_value []) {
 		/* Off/Off */
-		{0x0000, NULL             },
-		{0x0000, NULL             },
 		{0x0000, is_olympus_ge_p3 },
-		{0x0000, NULL             },
 		/* AMS/AMS. */
 		{0x0005, NULL             },
 	},
 	[CPCAP_VWLAN2] = (struct cpcap_mode_value []) {
 		/* On/LP 3.3v Secondary Standby (external pass) */
 		{0x0009, is_olympus_ge_p3 },
-		{0x0009, NULL             },
 		/* On/On 3.3v (external pass) */
 		{0x000D, NULL             },
 	},
@@ -332,8 +530,32 @@ struct cpcap_mode_value *cpcap_regulator_mode_values[] = {
 	[CPCAP_VAUDIO] = (struct cpcap_mode_value []) {
 		/* On/LP Secondary Standby */
 		{0x0005, NULL }
-	},
+	},	
+
 };
+/* STI-OLY replaced with atrix ones 	
+unsigned short cpcap_regulator_off_mode_values[CPCAP_NUM_REGULATORS] = {
+	[CPCAP_SW2]      = 0x0000,
+	[CPCAP_SW4]      = 0x0000,
+	[CPCAP_SW5]      = 0x0000,
+	[CPCAP_VCAM]     = 0x0000,
+	[CPCAP_VCSI]     = 0x0000,
+	[CPCAP_VDAC]     = 0x0000,
+	[CPCAP_VDIG]     = 0x0000,
+	[CPCAP_VFUSE]    = 0x0000,
+	[CPCAP_VHVIO]    = 0x0000,
+	[CPCAP_VSDIO]    = 0x0000,
+	[CPCAP_VPLL]     = 0x0000,
+	[CPCAP_VRF1]     = 0x0000,
+	[CPCAP_VRF2]     = 0x0000,
+	[CPCAP_VRFREF]   = 0x0000,
+	[CPCAP_VWLAN1]   = 0x0000,
+	[CPCAP_VWLAN2]   = 0x0000,
+	[CPCAP_VSIM]     = 0x0000,
+	[CPCAP_VSIMCARD] = 0x0000,
+	[CPCAP_VVIB]     = 0x0000,
+	[CPCAP_VUSB]     = 0x0000,
+	[CPCAP_VAUDIO]   = 0x0000,*/
 
 struct cpcap_mode_value *cpcap_regulator_off_mode_values[] = {
 	[CPCAP_SW1] = (struct cpcap_mode_value []) {
@@ -390,7 +612,6 @@ struct cpcap_mode_value *cpcap_regulator_off_mode_values[] = {
 	[CPCAP_VWLAN2] = (struct cpcap_mode_value []) {
 		/* Turn off only once sec standby is entered. */
 		{0x0004, is_olympus_ge_p3 },
-		{0x0004, NULL             },
 		{0x0000, NULL             },
 	},
 	[CPCAP_VSIM] = (struct cpcap_mode_value []) {
@@ -408,9 +629,12 @@ struct cpcap_mode_value *cpcap_regulator_off_mode_values[] = {
 	[CPCAP_VAUDIO] = (struct cpcap_mode_value []) {
 		{0x0000, NULL }
 	},
+
 };
 
-#define REGULATOR_CONSUMER(name, device) { .supply = name, .dev = device, }
+#define REGULATOR_CONSUMER(name, device) { .supply = name, .dev_name = device, }
+#define REGULATOR_CONSUMER_BY_DEVICE(name, device) \
+	{ .supply = name, .dev = device, }
 
 struct regulator_consumer_supply cpcap_sw1_consumers[] = {
 	REGULATOR_CONSUMER("sw1", NULL /* core */),
@@ -463,12 +687,6 @@ struct regulator_consumer_supply cpcap_vpll_consumers[] = {
 	REGULATOR_CONSUMER("odm-kit-vpll", NULL),
 };
 
-#if 0
-struct regulator_consumer_supply cpcap_vcsi_consumers[] = {
-	REGULATOR_CONSUMER("vdds_dsi", &sholes_dss_device.dev),
-};
-#endif
-
 struct regulator_consumer_supply cpcap_vcsi_consumers[] = {
 	REGULATOR_CONSUMER("vcsi", NULL),
 };
@@ -493,6 +711,11 @@ struct regulator_consumer_supply cpcap_vsimcard_consumers[] = {
 	REGULATOR_CONSUMER("odm-kit-vsimcard", NULL),
 };
 
+/* STI-OLY not used
+struct regulator_consumer_supply cpcap_vusb_consumers[] = {
+	REGULATOR_CONSUMER_BY_DEVICE("vusb", &cpcap_whisper_device.dev),
+}; */
+
 struct regulator_consumer_supply cpcap_vvib_consumers[] = {
 	REGULATOR_CONSUMER("vvib", NULL /* vibrator */),
 };
@@ -501,22 +724,27 @@ struct regulator_consumer_supply cpcap_vaudio_consumers[] = {
 	REGULATOR_CONSUMER("vaudio", NULL /* mic opamp */),
 	REGULATOR_CONSUMER("odm-kit-vaudio", NULL /* mic opamp */),
 };
-
+/* STI-OLY not used */
+#if 0 
+struct regulator_consumer_supply cpcap_vdig_consumers[] = {
+	REGULATOR_CONSUMER("vdig", NULL /* gps */),
+};
+#endif
 static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 	[CPCAP_SW1] = {
 		.constraints = {
 			.min_uV			= 750000,
-			.max_uV			= 1475000,
+			.max_uV			= 1100000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS |
                                                   REGULATOR_CHANGE_VOLTAGE,
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_sw1_consumers),
 		.consumer_supplies	= cpcap_sw1_consumers,
-	},
+	},	
 	[CPCAP_SW2] = {
 		.constraints = {
 			.min_uV			= 900000,
-			.max_uV			= 1475000,
+			.max_uV			= 1200000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS |
                                                   REGULATOR_CHANGE_VOLTAGE,
 		},
@@ -536,7 +764,7 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 	[CPCAP_SW4] = {
 		.constraints = {
 			.min_uV			= 900000,
-			.max_uV			= 1475000,
+			.max_uV			= 1200000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS |
                                                   REGULATOR_CHANGE_VOLTAGE,
 		},
@@ -558,6 +786,8 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.min_uV			= 2600000,
 			.max_uV			= 2900000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+			/* STI-OLY.apply_uV		= 1,*/
+
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vcam_consumers),
 		.consumer_supplies	= cpcap_vcam_consumers,
@@ -585,13 +815,22 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.min_uV			= 1200000,
 			.max_uV			= 1875000,
 			.valid_ops_mask		= 0,
+		/* STI-OLY
+			.always_on		= 1,
+			.apply_uV		= 1,*/
 		},
+		/* STI-OLY
+		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vdig_consumers),
+		.consumer_supplies	= cpcap_vdig_consumers, */
 	},
 	[CPCAP_VFUSE] = {
 		.constraints = {
 			.min_uV			= 1500000,
 			.max_uV			= 3150000,
 			.valid_ops_mask		= 0,
+			/* STI-OLY
+			.valid_ops_mask		= (REGULATOR_CHANGE_VOLTAGE |
+						   REGULATOR_CHANGE_STATUS),*/
 		},
 	},
 	[CPCAP_VHVIO] = {
@@ -609,16 +848,23 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 		.constraints = {
 			.min_uV			= 1500000,
 			.max_uV			= 3000000,
+			/* STI-OLY			
+			.valid_ops_mask		= 0,
+			.always_on		= 1,
+			.apply_uV		= 1,
+		},*/
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vsdio_consumers),
 		.consumer_supplies	= cpcap_vsdio_consumers,
+			
 	},
 	[CPCAP_VPLL] = {
 		.constraints = {
 			.min_uV			= 1800000,
 			.max_uV			= 1800000,
 			.valid_ops_mask		= 0,
+			/* STI-OLY .always_on		= 1, */
 			.apply_uV		= 1,
 		},
 		.num_consumer_supplies = ARRAY_SIZE(cpcap_vpll_consumers),
@@ -650,6 +896,7 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.min_uV			= 1800000,
 			.max_uV			= 1900000,
 			.valid_ops_mask		= 0,
+			/* STI-OLY .always_on		= 1,*/
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vwlan1_consumers),
 		.consumer_supplies	= cpcap_vwlan1_consumers,
@@ -658,6 +905,10 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 		.constraints = {
 			.min_uV			= 2775000,
 			.max_uV			= 3300000,
+			/* STI-OLY .valid_ops_mask		= 0,
+			.always_on		= 1,
+			.apply_uV		= 1,
+		},*/
 			.valid_ops_mask		= (REGULATOR_CHANGE_VOLTAGE | REGULATOR_CHANGE_STATUS),
 			.always_on		= 1,  /* Reinitialized based on hwrev in mot_setup_power() */
 		},
@@ -684,6 +935,8 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 		.constraints = {
 			.min_uV			= 1300000,
 			.max_uV			= 3000000,
+			/*STI-OLY .valid_ops_mask		= 0,
+		},*/
 			.valid_ops_mask		= (REGULATOR_CHANGE_VOLTAGE |
 						   REGULATOR_CHANGE_STATUS),
 		},
@@ -697,14 +950,16 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
 			.apply_uV		= 1,
 		},
+		/*.num_consumer_supplies	= ARRAY_SIZE(cpcap_vusb_consumers),
+		.consumer_supplies	= cpcap_vusb_consumers,*/
 	},
 	[CPCAP_VAUDIO] = {
 		.constraints = {
 			.min_uV			= 2775000,
 			.max_uV			= 2775000,
 			.valid_modes_mask	= (REGULATOR_MODE_NORMAL |
-								  REGULATOR_MODE_STANDBY |
-								  REGULATOR_MODE_IDLE),
+						   REGULATOR_MODE_STANDBY |
+						   REGULATOR_MODE_IDLE),
 			.valid_ops_mask		= REGULATOR_CHANGE_MODE,
 			.always_on		= 1,
 			.apply_uV		= 1,
@@ -715,7 +970,16 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 };
 
 /* ADC conversion delays for battery V and I measurments taken in and out of TX burst  */
-static struct cpcap_adc_ato cpcap_adc_ato = {
+static struct cpcap_adc_ato olympus_cpcap_adc_ato = {
+	/* STI-OLY replaced 
+	.ato_in = 0x0480,
+	.atox_in = 0,
+	.adc_ps_factor_in = 0x0200,
+	.atox_ps_factor_in = 0,
+	.ato_out = 0,
+	.atox_out = 0,
+	.adc_ps_factor_out = 0,
+	.atox_ps_factor_out = 0, */
 	.ato_in 		= 0x0300,
 	.atox_in 		= 0x0000,
 	.adc_ps_factor_in 	= 0x0200,
@@ -726,15 +990,18 @@ static struct cpcap_adc_ato cpcap_adc_ato = {
 	.atox_ps_factor_out 	= 0x0000,
 };
 
-struct cpcap_platform_data tegra_cpcap_data =
-{
-	.init = tegra_cpcap_spi_init,
-	.init_len = ARRAY_SIZE(tegra_cpcap_spi_init),
-	.leds = &tegra_cpcap_leds,
+static struct cpcap_platform_data olympus_cpcap_data = {
+	.init = olympus_cpcap_spi_init,
+	.init_len = ARRAY_SIZE(olympus_cpcap_spi_init),
+	.leds = &olympus_cpcap_leds,
 	.regulator_mode_values = cpcap_regulator_mode_values,
 	.regulator_off_mode_values = cpcap_regulator_off_mode_values,
 	.regulator_init = cpcap_regulator,
-	.adc_ato = &cpcap_adc_ato,
+	.adc_ato = &olympus_cpcap_adc_ato,
+	/* STI-OLY
+	.ac_changed = NULL,
+	.batt_changed = NULL,
+	.usb_changed = NULL, */
 	.wdt_disable = 0,
 	.hwcfg = {
 		(CPCAP_HWCFG0_SEC_STBY_SW3 |
@@ -749,6 +1016,65 @@ struct cpcap_platform_data tegra_cpcap_data =
 		 CPCAP_HWCFG1_SEC_STBY_VSIMCARD)},
 	.spdif_gpio = TEGRA_GPIO_PD4
 };
+
+static struct spi_board_info olympus_spi_board_info[] __initdata = {
+#ifdef CONFIG_MFD_CPCAP
+    {
+        .modalias = "cpcap",
+        .bus_num = 1,
+        .chip_select = 0,
+        .mode = SPI_MODE_0,
+        .max_speed_hz = 8000000,
+        .controller_data = &olympus_cpcap_data,
+        .irq = INT_EXTERNAL_PMU,
+    },
+#elif defined CONFIG_SPI_SPIDEV
+    {
+        .modalias = "spidev",
+        .bus_num = 1,
+        .chip_select = 0,
+        .mode = SPI_MODE_0,
+        .max_speed_hz = 18000000,
+        .platform_data = NULL,
+        .irq = 0,
+    },
+#endif
+};
+
+/* STI-OLY replacing with atrix regulator */
+#if 0
+struct regulator_consumer_supply max8649_consumers[] = {
+	REGULATOR_CONSUMER("vdd_cpu", NULL /* cpu */),
+};
+
+struct regulator_init_data max8649_regulator_init_data[] = {
+	{
+		.constraints = {
+			.min_uV			= 770000,
+			.max_uV			= 1100000,
+			.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE,
+			.always_on		= 1,
+		},
+		.num_consumer_supplies	= ARRAY_SIZE(max8649_consumers),
+		.consumer_supplies	= max8649_consumers,
+	},
+};
+
+struct max8649_platform_data stingray_max8649_pdata = {
+	.regulator = max8649_regulator_init_data,
+	.mode = 1,
+	.extclk = 0,
+	.ramp_timing = MAX8649_RAMP_32MV,
+	.ramp_down = 0,
+};
+
+static struct i2c_board_info __initdata stingray_i2c_bus4_power_info[] = {
+	{
+		I2C_BOARD_INFO("max8649", 0x60),
+		.platform_data = &stingray_max8649_pdata,
+	},
+};
+#endif
 
 struct regulator_consumer_supply fixed_sdio_en_consumers[] = {
 	REGULATOR_SUPPLY("vsdio_ext", NULL),
@@ -783,174 +1109,55 @@ static struct platform_device fixed_regulator_devices[] = {
 	},
 };
 
-struct spi_board_info tegra_spi_devices[] __initdata = {
-#ifdef CONFIG_MFD_CPCAP
-    {
-        .modalias = "cpcap",
-        .bus_num = 1,
-        .chip_select = 0,
-        .mode = SPI_MODE_0,
-        .max_speed_hz = 8000000,
-        .controller_data = &tegra_cpcap_data,
-        .irq = INT_EXTERNAL_PMU,
-    },
-#elif defined CONFIG_SPI_SPIDEV
-    {
-        .modalias = "spidev",
-        .bus_num = 1,
-        .chip_select = 0,
-        .mode = SPI_MODE_0,
-        .max_speed_hz = 18000000,
-        .platform_data = NULL,
-        .irq = 0,
-    },
-#endif
+static struct mdm_ctrl_platform_data mdm_ctrl_platform_data = {
+	.gpios[MDM_CTRL_GPIO_AP_STATUS_0] = {
+		TEGRA_GPIO_PC1, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_ap_status0"},
+	.gpios[MDM_CTRL_GPIO_AP_STATUS_1] = {
+		TEGRA_GPIO_PC6, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_ap_status1"},
+	.gpios[MDM_CTRL_GPIO_AP_STATUS_2] = {
+		TEGRA_GPIO_PQ3, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_ap_status2"},
+	.gpios[MDM_CTRL_GPIO_BP_STATUS_0] = {
+		TEGRA_GPIO_PK3, MDM_GPIO_DIRECTION_IN, 0, 0, "mdm_bp_status0"},
+	.gpios[MDM_CTRL_GPIO_BP_STATUS_1] = {
+		TEGRA_GPIO_PK4, MDM_GPIO_DIRECTION_IN, 0, 0, "mdm_bp_status1"},
+	.gpios[MDM_CTRL_GPIO_BP_STATUS_2] = {
+		TEGRA_GPIO_PK2, MDM_GPIO_DIRECTION_IN, 0, 0, "mdm_bp_status2"},
+	.gpios[MDM_CTRL_GPIO_BP_RESOUT]   = {
+		TEGRA_GPIO_PS4, MDM_GPIO_DIRECTION_IN, 0, 0, "mdm_bp_resout"},
+	.gpios[MDM_CTRL_GPIO_BP_RESIN]    = {
+		TEGRA_GPIO_PZ1, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_bp_resin"},
+	.gpios[MDM_CTRL_GPIO_BP_PWRON]    = {
+		TEGRA_GPIO_PS6, MDM_GPIO_DIRECTION_OUT, 0, 0, "mdm_bp_pwr_on"},
+	.cmd_gpios = {TEGRA_GPIO_PQ5, TEGRA_GPIO_PS5},
 };
 
-/*
-struct cpcap_usb_connected_data {
-	NvOdmServicesGpioHandle h_gpio;
-	NvOdmGpioPinHandle h_pin;
-	NvU32 port;
-	NvU32 pin;
-	enum cpcap_accy accy;
-};*/
-
-static int cpcap_usb_connected_probe(struct platform_device *pdev)
-{
-/*	struct cpcap_usb_connected_data *data;*/
-	struct cpcap_accy_platform_data *pdata = pdev->dev.platform_data;
-
-	int nr_gpio;
-	int ret;
-	static int count_f7 = 0;
-
-#if 0
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if(!data)
-		return -ENOMEM;
-
-	data->accy = pdata->accy;
-
-
-
-	
-	/* Configure CPCAP-AP20 USB Mux to AP20 */
-	data->port = NVODM_PORT('v'); 
-	printk(KERN_INFO "pICS_%s: data->port = NVODM_PORT('v') = %lu\n",__func__, data->port);
-	data->pin = 6;
-	data->h_gpio = NvOdmGpioOpen(); 
-	printk(KERN_INFO "pICS_%s: data->h_gpio = NvOdmGpioOpen()\n",__func__);
-	data->h_pin = NvOdmGpioAcquirePinHandle(data->h_gpio, data->port, data->pin);
-	printk(KERN_INFO "pICS_%s: data->h_pin = NvOdmGpioAcquirePinHandle(data->h_gpio, data->port, data->pin)\n",__func__);
-	NvOdmGpioConfig(data->h_gpio, data->h_pin, NvOdmGpioPinMode_Output);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioConfig(data->h_gpio, data->h_pin, NvOdmGpioPinMode_Output)\n",__func__);
-	NvOdmGpioSetState(data->h_gpio, data->h_pin, 0x1);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioSetState(data->h_gpio, data->h_pin, 0x1)\n",__func__);
-#endif
-/*	data->port = 21;
-	data->pin = 6;
-	data->h_gpio = 174;
-	data->h_pin = */
-
-try_f7:
-
-	nr_gpio = 174;
-    	ret = gpio_request(nr_gpio, "nvrm_gpio");
-    	printk(KERN_INFO "pICS_%s: gpio_request(nr_gpio=%i, 'nvrm_gpio') => %i;\n",__func__, nr_gpio, ret);
-
-    	if (ret) {
-		if(TEGRA_GPIO_PF7 == nr_gpio && !count_f7)
-		{
-			pr_err("%s: gpio_request for 47 failed (%d). Special case to free and retry\n",	__func__, ret);
-			// F7 is allocated early by lights driver but really should be owned by disp driver
-			gpio_free(nr_gpio);
-			/*gpio_data[nr_gpio].val = false;
-			gpio_data[nr_gpio].alloc = false;*/
-			count_f7 = 1;
-			goto try_f7;
-		}
-
-		/*gpio_to_name(nr_gpio, gpio_name);*/
-		pr_err("%s: gpio_request for %d failed (%d)\n",
-		       __func__, nr_gpio, ret);
-	}
-
-/*	gpio_data[nr_gpio].alloc = true;
-	gpio_data[nr_gpio].val = false;*/
-
-	tegra_gpio_enable(nr_gpio);
-	gpio_direction_output(nr_gpio, 0);	
-	gpio_set_value(nr_gpio, 1);
-
-	platform_set_drvdata(pdev, pdata);
-
-	/* when the phone is the host do not start the gadget driver */
-	if((pdata->accy == CPCAP_ACCY_USB) || (pdata->accy == CPCAP_ACCY_FACTORY)) {
-#ifdef CONFIG_USB_TEGRA_OTG
-		tegra_otg_set_mode(0);
-#endif
-		android_usb_set_connected(1, pdata->accy);
-	}
-	if(pdata->accy == CPCAP_ACCY_USB_DEVICE) {
-#ifdef CONFIG_USB_TEGRA_OTG
-		tegra_otg_set_mode(1);
-#endif
-	}
-	mdm_ctrl_set_usb_ipc(true);
-
-	return 0;
-}
-
-static int cpcap_usb_connected_remove(struct platform_device *pdev)
-{
-/*	struct cpcap_usb_connected_data *data = platform_get_drvdata(pdev);*/
-	struct cpcap_accy_platform_data *pdata = pdev->dev.platform_data;
-
-	int nr_gpio;
-
-	mdm_ctrl_set_usb_ipc(false);
-#if 0
-	/* Configure CPCAP-AP20 USB Mux to CPCAP */
-	NvOdmGpioSetState(data->h_gpio, data->h_pin, 0x0);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioSetState (data->h_gpio, data->h_pin, 0x0)\n",__func__);
-	NvOdmGpioReleasePinHandle(data->h_gpio, data->h_pin);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioReleasePinHandle(data->h_gpio, data->h_pin)\n",__func__);
-	NvOdmGpioClose(data->h_gpio);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioClose(data->h_gpio)\n",__func__);
-#endif
-	
-	nr_gpio = 174;
-	gpio_set_value(nr_gpio, 0);
-
-	gpio_free(nr_gpio);
-/*	gpio_data[nr_gpio].val = false;
-	gpio_data[nr_gpio].alloc = false;*/
-	
-	tegra_gpio_disable(nr_gpio);
-
-	if((pdata->accy == CPCAP_ACCY_USB) || (pdata->accy == CPCAP_ACCY_FACTORY))
-		android_usb_set_connected(0, pdata->accy);
-
-#ifdef CONFIG_USB_TEGRA_OTG
-	tegra_otg_set_mode(2);
-#endif
-
-/*	kfree(data);*/
-
-        return 0;
-}
-
-
-
-struct platform_driver cpcap_usb_connected_driver = {
-        .probe          = cpcap_usb_connected_probe,
-        .remove         = cpcap_usb_connected_remove,
-        .driver         = {
-                .name   = "cpcap_usb_connected",
-                .owner  = THIS_MODULE,
-    },
+static struct platform_device mdm_ctrl_platform_device = {
+	.name = MDM_CTRL_MODULE_NAME,
+	.id = -1,
+	.dev = {
+		.platform_data = &mdm_ctrl_platform_data,
+	},
 };
+
+static void mdm_ctrl_register(void)
+{
+	int i;
+
+	for (i = 0; i < MDM_CTRL_NUM_GPIOS; i++)
+		tegra_gpio_enable(mdm_ctrl_platform_data.gpios[i].number);
+
+	if (olympus_qbp_usb_hw_bypass_enabled()) {
+		/* The default AP status is "no bypass", so we must override it */
+		mdm_ctrl_platform_data.gpios[MDM_CTRL_GPIO_AP_STATUS_0]. \
+				default_value = 1;
+		mdm_ctrl_platform_data.gpios[MDM_CTRL_GPIO_AP_STATUS_1]. \
+				default_value = 0;
+		mdm_ctrl_platform_data.gpios[MDM_CTRL_GPIO_AP_STATUS_2]. \
+				default_value = 0;
+	}
+
+	platform_device_register(&mdm_ctrl_platform_device);
+}
 
 #ifdef CONFIG_REGULATOR_VIRTUAL_CONSUMER
 static struct platform_device cpcap_reg_virt_vcam =
@@ -991,59 +1198,44 @@ static struct platform_device cpcap_reg_virt_sw5 =
 };
 #endif
 
-void mot_setup_power(void)
+int __init olympus_power_init(void)
 {
-	unsigned int i;
+	int i;
+	unsigned long pmc_cntrl_0;
 	int error;
 
-	printk(KERN_INFO "pICS_%s: system_rev = 0x%x\n",__func__, system_rev);
-	printk(KERN_INFO "pICS_%s: HWREV_TYPE_IS_FINAL = %s\n",__func__, ((HWREV_TYPE_IS_FINAL(system_rev))?"true":"false"));
-	printk(KERN_INFO "pICS_%s: HWREV_TYPE_IS_PORTABLE = %s\n",__func__, ((HWREV_TYPE_IS_PORTABLE(system_rev))?"true":"false"));
-	printk(KERN_INFO "pICS_%s: HWREV = 0x%x\n",__func__, HWREV_REV(system_rev));
+	/* Enable CORE_PWR_REQ signal from T20. The signal must be enabled
+	 * before the CPCAP uC firmware is started. */
+	pmc_cntrl_0 = readl(IO_ADDRESS(TEGRA_PMC_BASE));
+	pmc_cntrl_0 |= 0x00000200;
+	writel(pmc_cntrl_0, IO_ADDRESS(TEGRA_PMC_BASE));
 
-	/* CPCAP standby lines connected to CPCAP GPIOs on Etna P1B & Olympus P2 */
-	if ( HWREV_TYPE_IS_FINAL(system_rev) ||
-	     (machine_is_etna() &&
-	      HWREV_TYPE_IS_PORTABLE(system_rev) &&
-	       (HWREV_REV(system_rev)  >= HWREV_REV_1B))  ||
-	     (machine_is_olympus() &&
-	       HWREV_TYPE_IS_PORTABLE(system_rev) &&
-	       (HWREV_REV(system_rev)  >= HWREV_REV_2)) ||
-		  machine_is_tegra_daytona() || machine_is_sunfire()) {
-		tegra_cpcap_data.hwcfg[1] |= CPCAP_HWCFG1_STBY_GPIO;
-	}
 
-	/* For Olympus P3 the following is done:
-	 * 1. VWLAN2 is  shutdown in standby by the CPCAP uC.
-	 * 2. VWLAN1 is shutdown all of the time.
-	 */
-	if (HWREV_TYPE_IS_FINAL(system_rev) ||
-		(HWREV_TYPE_IS_PORTABLE(system_rev) &&
-		 (HWREV_REV(system_rev) >= HWREV_REV_3))) {
-		pr_info("Detected P3 Olympus hardware.\n");
-		tegra_cpcap_data.hwcfg[1] |= CPCAP_HWCFG1_SEC_STBY_VWLAN2;
-		tegra_cpcap_data.hwcfg[1] &= ~CPCAP_HWCFG1_SEC_STBY_VWLAN1;
-		cpcap_regulator[CPCAP_VWLAN2].constraints.always_on = 0;
-	} else {
-		/* Currently only Olympus P3 or greater can handle turning off the
-		   external SD card. */
-		fixed_sdio_config.enabled_at_boot = 1;
-	}
-	/* Indicate the macro controls SW5. */
-	tegra_cpcap_leds.rgb_led.regulator_macro_controlled = true;
+#ifdef ENABLE_SOFT_RESET_DEBUGGING
+	/* Only P3 and later hardware supports CPCAP resetting the T20. */
+	if (olympus_revision() >= OLYMPUS_REVISION_3)
+		olympus_cpcap_data.hwcfg[1] |= CPCAP_HWCFG1_SOFT_RESET_HOST;
+#endif
 
-	/* For all machine types, disable watchdog when HWREV is debug, brassboard or mortable */
-	if (HWREV_TYPE_IS_DEBUG(system_rev) || HWREV_TYPE_IS_BRASSBOARD(system_rev) ||
-	    HWREV_TYPE_IS_MORTABLE(system_rev) ){
-		tegra_cpcap_data.wdt_disable = 1;
-	}
+	tegra_gpio_enable(TEGRA_GPIO_PT2);
+	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
+	gpio_direction_output(TEGRA_GPIO_PT2, 0);
 
-	spi_register_board_info(tegra_spi_devices, ARRAY_SIZE(tegra_spi_devices));
+	spi_register_board_info(olympus_spi_board_info,
+				ARRAY_SIZE(olympus_spi_board_info));
+
+	for (i = 0; i < ARRAY_SIZE(cpcap_devices); i++)
+		cpcap_device_register(cpcap_devices[i]);
 
 	for (i = 0; i < sizeof(fixed_regulator_devices)/sizeof(fixed_regulator_devices[0]); i++) {
 		error = platform_device_register(&fixed_regulator_devices[i]);
 		pr_info("Registered reg-fixed-voltage: %d result: %d\n", i, error);
 	}
+
+	if (!olympus_qbp_usb_hw_bypass_enabled())
+		cpcap_device_register(&cpcap_whisper_device);
+
+	(void) cpcap_driver_register(&cpcap_validity_driver);
 
 #ifdef CONFIG_REGULATOR_VIRTUAL_CONSUMER
 	(void) platform_device_register(&cpcap_reg_virt_vcam);
@@ -1051,9 +1243,16 @@ void mot_setup_power(void)
 	(void) platform_device_register(&cpcap_reg_virt_vcsi_2);
 	(void) platform_device_register(&cpcap_reg_virt_sw5);
 #endif
-}
 
-static int disable_rtc_alarms(struct device *dev, void *data)
-{
-	return (rtc_alarm_irq_enable((struct rtc_device *)dev, 0));
+	/* STI-OLY registering max8649 which we don't have
+	i2c_register_board_info(3, stingray_i2c_bus4_power_info,
+		ARRAY_SIZE(stingray_i2c_bus4_power_info));*/
+
+	/*
+	if (stingray_hw_has_cdma() || stingray_hw_has_umts()) {*/
+		mdm_ctrl_register();
+	/*		wrigley_ctrl_register();
+	} */
+
+	return 0;
 }

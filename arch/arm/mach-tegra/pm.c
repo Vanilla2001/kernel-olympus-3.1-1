@@ -1068,9 +1068,10 @@ static int tegra_pm_enter_suspend(void)
 		current_suspend_mode = TEGRA_SUSPEND_LP1;
 	else
 		current_suspend_mode = pdata->suspend_mode;
-#endif
+
 	if (current_suspend_mode == TEGRA_SUSPEND_LP1)
 		gpio_set_value(GPIO_PDA_ACTIVE, 0);
+#endif
 
 	pr_info("Entering suspend state %s\n", lp_state[current_suspend_mode]);
 	if (current_suspend_mode == TEGRA_SUSPEND_LP0)
@@ -1082,9 +1083,10 @@ static void tegra_pm_enter_resume(void)
 {
 	if (current_suspend_mode == TEGRA_SUSPEND_LP0)
 		tegra_lp0_cpu_mode(false);
+#ifdef CONFIG_MACH_N1
 	if (current_suspend_mode == TEGRA_SUSPEND_LP1)
 		gpio_set_value(GPIO_PDA_ACTIVE, 1);
-#ifdef CONFIG_MACH_N1
+
 	n1_save_wakeup_key(current_suspend_mode);
 #endif
 	pr_info("Exited suspend state %s\n", lp_state[current_suspend_mode]);

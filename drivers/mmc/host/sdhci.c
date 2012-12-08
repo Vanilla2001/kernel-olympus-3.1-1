@@ -967,7 +967,20 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 
 	sdhci_prepare_data(host, cmd);
 
+#ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
+	if (cmd->data ||
+	   (cmd->opcode == MMC_ERASE_GROUP_START) ||
+	   (cmd->opcode == MMC_ERASE_GROUP_END)) {
+		unsigned long offset = host->start_offset;
+		if (likely(mmc_card_blockaddr(host->mmc->card)))
+			offset >>= 9;
+		sdhci_writel(host, cmd->arg + offset, SDHCI_ARGUMENT);
+	} else {
+		sdhci_writel(host, cmd->arg, SDHCI_ARGUMENT);
+	}
+#else
 	sdhci_writel(host, cmd->arg, SDHCI_ARGUMENT);
+#endif
 
 	sdhci_set_transfer_mode(host, cmd);
 
@@ -1877,6 +1890,14 @@ int sdhci_disable(struct mmc_host *mmc, int lazy)
 	return 0;
 }
 
+#ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
+static unsigned int sdhci_get_host_offset(struct mmc_host *mmc) {
+	struct sdhci_host *host;
+	host = mmc_priv(mmc);
+	return host->start_offset;
+}
+#endif
+
 static const struct mmc_host_ops sdhci_ops = {
 	.request	= sdhci_request,
 	.set_ios	= sdhci_set_ios,
@@ -1887,6 +1908,9 @@ static const struct mmc_host_ops sdhci_ops = {
 	.start_signal_voltage_switch	= sdhci_start_signal_voltage_switch,
 	.execute_tuning			= sdhci_execute_tuning,
 	.enable_preset_value		= sdhci_enable_preset_value,
+#ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
+	.get_host_offset = sdhci_get_host_offset,
+#endif
 };
 
 /*****************************************************************************\

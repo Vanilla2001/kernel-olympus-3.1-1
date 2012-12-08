@@ -222,7 +222,9 @@ obj-${CONFIG_BT_BCM4330}                += board-bluetooth-bcm4330.o
 obj-$(CONFIG_SEC_MODEM_N1)              += board-n1-modems.o
 obj-$(CONFIG_SEC_MODEM_BOSE)            += board-n1-modems.o
 
+obj-${CONFIG_MACH_OLYMPUS}             += board-common.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus.o
+obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-odmfree.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-pinmux.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-panel.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-keypad.o
@@ -231,6 +233,7 @@ obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-sensors.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-wlan_nvs.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-touch.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-power.o
+obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-usb.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-bluetooth.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-gps.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-bootinfo.o
