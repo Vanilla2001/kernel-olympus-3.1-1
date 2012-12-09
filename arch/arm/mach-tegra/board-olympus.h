@@ -3,8 +3,8 @@
 /*#include <mach/serial.h>*/
 #include <linux/i2c.h>
 #include <linux/i2c/akm8975.h>
+/*#include <linux/tegra_uart.h>*/
 #include "hwrev.h"
-#include <linux/tegra_uart.h>
 
 extern struct kxtf9_platform_data kxtf9_data;
 extern struct akm8975_platform_data akm8975_data;
@@ -15,7 +15,7 @@ extern struct cpcap_platform_data tegra_cpcap_data;
 extern struct cpcap_leds tegra_cpcap_leds;
 extern struct platform_driver cpcap_usb_connected_driver;
 extern struct l3g4200d_platform_data tegra_gyro_pdata;
-
+/*extern struct plat_serial8250_port tegra_uart_platform[];*/
 
 extern void olympus_pinmux_init(void);
 extern int olympus_panel_init(void);
@@ -50,8 +50,6 @@ extern void sdhci_tegra_wlan_detect(void);
 extern void mot_setup_spi_ipc(void);
 
 extern void mot_keymap_update_init(void);
-
-extern struct tegra_uart_platform_data tegra_uart_platform[];
 
 extern void cpcap_set_dock_switch(int state);
 

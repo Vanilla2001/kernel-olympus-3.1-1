@@ -29,6 +29,7 @@
 #include <linux/ctype.h>
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
+#include <linux/mtd/partitions.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>

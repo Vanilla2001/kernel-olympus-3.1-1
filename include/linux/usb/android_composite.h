@@ -97,4 +97,6 @@ struct acm_platform_data {
 	u8	num_inst;
 };
 
+extern void android_usb_set_connected(int on, unsigned int accy);
+
 #endif	/* __LINUX_USB_ANDROID_H */

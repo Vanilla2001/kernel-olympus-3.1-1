@@ -30,6 +30,17 @@ struct tegra_sdhci_platform_data {
 	unsigned int max_clk_limit;
 	unsigned int tap_delay;
 	struct mmc_platform_data mmc_data;
+#ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
+	unsigned long offset;	/* offset in blocks to MBR */
+#endif
+	char *regulator_str;	/* Voltage regulator used to control the
+							   the card. */
+#ifdef CONFIG_MACH_OLYMPUS
+	unsigned int ocr_mask;	/* available voltages */
+	int (*register_status_notify)\
+		(void (*callback)(void *dev_id), void *dev_id);
+	struct embedded_sdio_data *embedded_sdio;
+#endif
 };
 
 #endif

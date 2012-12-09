@@ -148,6 +148,9 @@ struct mmc_host_ops {
 	int	(*execute_tuning)(struct mmc_host *host);
 	void	(*enable_preset_value)(struct mmc_host *host, bool enable);
 	int	(*select_drive_strength)(unsigned int max_dtr, int host_drv, int card_drv);
+#ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
+	unsigned int (*get_host_offset)(struct mmc_host *host);
+#endif
 };
 
 struct mmc_card;

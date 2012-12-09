@@ -542,6 +542,10 @@ config APANIC_PLABEL
 	 If your platform uses a different flash partition label for storing
  	 crashdumps, enter it here.
 
+config MDM_CTRL
+	bool "Modem control"
+	default n
+
 config BCM4329_RFKILL
 	bool "Enable BCM4329 RFKILL driver"
 	default n

@@ -32,6 +32,9 @@
 #include <linux/console.h>
 #include <linux/reboot.h>
 #include <linux/tegra_uart.h>
+#include <linux/spi-tegra.h>
+#include <linux/i2c-tegra.h>
+#include <linux/mtd/partitions.h>
 
 #include <mach/iomap.h>
 #include <mach/io.h>
@@ -208,11 +211,11 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform[] = {
 	[2] = {
 		.mmc_data = {
 			.built_in = 0,
+			.card_present = 0,
 		},
 		.wp_gpio = -1,
 		.cd_gpio = 69,
 		.power_gpio = -1,
-	/*	.gpio_polarity_cd = 0,*/
 		.max_clk_limit = 50000000,
 	},
 	[3] = {
@@ -365,46 +368,37 @@ static void __init tegra_setup_sdhci(void) { }
 #endif
 
 #ifdef CONFIG_SERIAL_TEGRA
-struct tegra_uart_platform_data tegra_uart_platform[] = {
+
+struct plat_serial8250_port tegra_uart_platform[] = {
 	{
-		.p = {
-			.membase = IO_ADDRESS(TEGRA_UARTA_BASE),
-			.mapbase = TEGRA_UARTA_BASE,
-			.irq = INT_UARTA,
-		},
-		.use_pio = false,
+		.membase = IO_ADDRESS(TEGRA_UARTA_BASE),
+		.mapbase = TEGRA_UARTA_BASE,
+		.irq = INT_UARTA,
 	},
 	{
-		.p = {
-			.membase = IO_ADDRESS(TEGRA_UARTB_BASE),
-			.mapbase = TEGRA_UARTB_BASE,
-			.irq = INT_UARTB,
-		},
-		.use_pio = false,
+		.membase = IO_ADDRESS(TEGRA_UARTB_BASE),
+		.mapbase = TEGRA_UARTB_BASE,
+		.irq = INT_UARTB,
+
 	},
 	{
-		.p = {
-			.membase = IO_ADDRESS(TEGRA_UARTC_BASE),
-			.mapbase = TEGRA_UARTC_BASE,
-			.irq = INT_UARTC,
-		},
-		.use_pio = false,
+
+		.membase = IO_ADDRESS(TEGRA_UARTC_BASE),
+		.mapbase = TEGRA_UARTC_BASE,
+		.irq = INT_UARTC,
+
 	},
 	{
-		.p = {
-			.membase = IO_ADDRESS(TEGRA_UARTD_BASE),
-			.mapbase = TEGRA_UARTD_BASE,
-			.irq = INT_UARTD,
-		},
-		.use_pio = false,
+
+		.membase = IO_ADDRESS(TEGRA_UARTD_BASE),
+		.mapbase = TEGRA_UARTD_BASE,
+		.irq = INT_UARTD,
+
 	},
 	{
-		.p = {
-			.membase = IO_ADDRESS(TEGRA_UARTE_BASE),
-			.mapbase = TEGRA_UARTE_BASE,
-			.irq = INT_UARTE,
-		},
-		.use_pio = false,
+		.membase = IO_ADDRESS(TEGRA_UARTE_BASE),
+		.mapbase = TEGRA_UARTE_BASE,
+		.irq = INT_UARTE,
 	},
 };
 static struct platform_device tegra_uart[] = {
@@ -458,13 +452,6 @@ static struct platform_device tegra_uart[] = {
 static void __init tegra_setup_hsuart(void)
 {
 	printk(KERN_INFO "pICS_%s: Starting...",__func__);
-
-	tegra_uart_platform[0].pinmux = tegra_pinmux_get("tegra_uart.0", 4, &tegra_uart_platform[0].nr_pins);
-	/* set if no debug on UARTB */
-	/* tegra_uart_platform[1].pinmux = tegra_pinmux_get("tegra_uart.1", TO_FILL, &tegra_uart_platform[1].nr_pins);*/
-	tegra_uart_platform[2].pinmux = tegra_pinmux_get("tegra_uart.2", 1, &tegra_uart_platform[2].nr_pins);
-	tegra_uart_platform[3].pinmux = tegra_pinmux_get("tegra_uart.3", 2, &tegra_uart_platform[3].nr_pins);
-	tegra_uart_platform[4].pinmux = tegra_pinmux_get("tegra_uart.4", 4, &tegra_uart_platform[3].nr_pins);
 
 	if (platform_device_register(&tegra_uart[0])) 
 			pr_err("%s: failed to register %s.%d\n",
@@ -654,30 +641,29 @@ static inline void tegra_setup_hcd(void) { }
 #endif
 
 #ifdef CONFIG_KEYBOARD_TEGRA
-struct tegra_kbc_plat tegra_kbc_platform;
+static const u32 olympus_keymap[] = {
+	KEY(0, 0, KEY_VOLUMEUP),
+	KEY(0, 1, KEY_VOLUMEDOWN),
+	KEY(0, 2, KEY_AUX),
+	KEY(1, 0, KEY_CAMERA_FOCUS),
+	KEY(1, 1, KEY_CAMERA),
+	KEY(1, 2, KEY_SEARCH),
+	KEY(2, 0, KEY_MENU),
+	KEY(2, 1, KEY_HOME),
+	KEY(2, 2, KEY_BACK),
+};
+
+static const struct matrix_keymap_data olympus_keymap_data = {
+	.keymap = olympus_keymap,
+	.keymap_size = ARRAY_SIZE(olympus_keymap),
+};
+
+struct tegra_kbc_platform_data tegra_kbc_platform;
 
 static noinline void __init tegra_setup_kbc(void)
 {
-	int i;	
 
-	tegra_kbc_platform.keymap = kzalloc(sizeof(*tegra_kbc_platform.keymap)*KBC_MAX_KEY, GFP_KERNEL);
-	if (!tegra_kbc_platform.keymap) {
-		pr_err("%s: out of memory for key mapping\n", __func__);
-		return;
-	}
 	tegra_kbc_platform.wake_cnt = 5; /* 0:wake on any key >1:wake on wake_cfg */
-	tegra_kbc_platform.wake_cfg = kzalloc(sizeof(*tegra_kbc_platform.wake_cfg)*tegra_kbc_platform.wake_cnt,
-			GFP_KERNEL);
-	
-	tegra_kbc_platform.wake_cfg[0].row = 0;
-	tegra_kbc_platform.wake_cfg[0].col = 0;
-	tegra_kbc_platform.wake_cfg[1].row = 1;
-	tegra_kbc_platform.wake_cfg[1].col = 0;
-	tegra_kbc_platform.wake_cfg[2].row = 1;
-	tegra_kbc_platform.wake_cfg[2].col = 1;
-	tegra_kbc_platform.wake_cfg[3].row = 2;
-	tegra_kbc_platform.wake_cfg[4].row = 2;
-	tegra_kbc_platform.wake_cfg[4].col = 1;
 
 	/* debounce time is reported from ODM in terms of clock ticks. */
 	tegra_kbc_platform.debounce_cnt = 10;
@@ -693,16 +679,14 @@ static noinline void __init tegra_setup_kbc(void)
 	tegra_kbc_platform.pin_cfg[2].num = 2;
 	tegra_kbc_platform.pin_cfg[2].is_row = true;
 	tegra_kbc_platform.pin_cfg[16].num = 0;
-	tegra_kbc_platform.pin_cfg[16].is_col = true;
+	tegra_kbc_platform.pin_cfg[16].en = true; /*ICS check if is_col = en*/
 	tegra_kbc_platform.pin_cfg[17].num = 1;
-	tegra_kbc_platform.pin_cfg[17].is_col = true;
+	tegra_kbc_platform.pin_cfg[17].en = true;
 	tegra_kbc_platform.pin_cfg[18].num = 2;
-	tegra_kbc_platform.pin_cfg[18].is_col = true;
+	tegra_kbc_platform.pin_cfg[18].en = true;
 
-	for (i=0; i<KBC_MAX_KEY; i++) {
-		tegra_kbc_platform.keymap[i] = -1;
-	}
-
+	tegra_kbc_platform.keymap_data = &olympus_keymap_data;
+/* ICS check if scancodes are needed
 	tegra_kbc_platform.keymap[0]=115;
 	tegra_kbc_platform.keymap[1]=114;
 	tegra_kbc_platform.keymap[2]=152;
@@ -712,7 +696,7 @@ static noinline void __init tegra_setup_kbc(void)
 	tegra_kbc_platform.keymap[32]=139;
 	tegra_kbc_platform.keymap[33]=102;
 	tegra_kbc_platform.keymap[34]=158;
-
+*/
 }
 #else
 static void tegra_setup_kbc(void) { }
@@ -746,19 +730,19 @@ static void tegra_setup_rfkill(void) { }
 #ifdef CONFIG_SPI_TEGRA
 static struct tegra_spi_platform_data tegra_spi_platform[] = {
 	[0] = {
-		.is_slink = true,
+		/*.is_slink = true,*/
 	},
 	[1] = {
-		.is_slink = true,
+		/*.is_slink = true,*/
 	},
 	[2] = {
-		.is_slink = true,
+		/*.is_slink = true,*/
 	},
 	[3] = {
-		.is_slink = true,
+		/*.is_slink = true,*/
 	},
 	[4] = {
-		.is_slink = false,
+		/*.is_slink = false,*/
 	},
 };
 static struct platform_device tegra_spi_devices[] = {
@@ -830,33 +814,33 @@ static void tegra_setup_spi(void) { }
 #endif
 
 #ifdef CONFIG_I2C_TEGRA
-static struct tegra_i2c_plat_parms tegra_i2c_platform[] = {
+static struct tegra_i2c_platform_data tegra_i2c_platform[] = {
 	[0] = {
 		.adapter_nr = 0,
 		.bus_count = 1,
 		.bus_mux = { 0, 0 },
-		.bus_clk = { 100000, 0 }, /* default to 100KHz */
+		.bus_clk_rate = { 100000, 0 }, /* default to 100KHz */
 		.is_dvc = false,
 	},
 	[1] = {
 		.adapter_nr = 1,
 		.bus_count = 1,
 		.bus_mux = { 0, 0 },
-		.bus_clk = { 100000, 0 },
+		.bus_clk_rate = { 100000, 0 },
 		.is_dvc = false,
 	},
 	[2] = {
 		.adapter_nr = 2,
 		.bus_count = 1,
 		.bus_mux = { 0, 0 },
-		.bus_clk = { 100000, 0 },
+		.bus_clk_rate = { 100000, 0 },
 		.is_dvc = false,
 	},
 	[3] = {
 		.adapter_nr = 3,
 		.bus_count = 1,
 		.bus_mux = { 0, 0 },
-		.bus_clk = { 100000, 0 },
+		.bus_clk_rate = { 100000, 0 },
 		.is_dvc = true,
 	},
 };
@@ -892,11 +876,9 @@ static struct platform_device tegra_i2c_devices[] = {
 };
 static noinline void __init tegra_setup_i2c(void)
 {
-	printk(KERN_INFO "pICS_%s: tegra_i2c_platform[0].bus_clk[0] = %lu",__func__, tegra_i2c_platform[0].bus_clk[0]);
-	tegra_i2c_platform[0].bus_clk[0] = 400*1000;
-	printk(KERN_INFO "pICS_%s: tegra_i2c_platform[0].bus_clk[0] = %lu",__func__, tegra_i2c_platform[0].bus_clk[0]);
-	tegra_i2c_platform[1].bus_clk[0] = 400*1000;
-	tegra_i2c_platform[2].bus_clk[0] = 400*1000;
+	tegra_i2c_platform[0].bus_clk_rate[0] = 400*1000;
+	tegra_i2c_platform[1].bus_clk_rate[0] = 400*1000;
+	tegra_i2c_platform[2].bus_clk_rate[0] = 400*1000;
 
 	if (platform_device_register(&tegra_i2c_devices[0]))
 		pr_err("%s: failed to register %s.%d\n",
@@ -927,7 +909,7 @@ static struct platform_device tegra_w1_device = {
 static noinline void __init tegra_setup_w1(void)
 {
 
-	tegra_w1_platform.pinmux = 1;
+	/*tegra_w1_platform.pinmux = 1;*/
 	if (platform_device_register(&tegra_w1_device)) {
 		pr_err("%s: failed to register %s.%d\n",
 		       __func__, tegra_w1_device.name, tegra_w1_device.id);
@@ -983,9 +965,8 @@ static void __init tegra_setup_suspend(void)
 	};
 #endif /* CONFIG_ARCH_TEGRA_2x_SOC */
 
-	tegra_suspend_platform.dram_suspend = true;
-	tegra_suspend_platform.dram_suspend = true;
-	tegra_suspend_platform.core_off = true;
+	/*tegra_suspend_platform.dram_suspend = true;
+	tegra_suspend_platform.core_off = true;*/
 	tegra_suspend_platform.cpu_timer = 800;
 	tegra_suspend_platform.cpu_off_timer = 600;
 	tegra_suspend_platform.core_timer = 1842;
@@ -1032,7 +1013,7 @@ static void __init tegra_setup_suspend(void)
 	printk(KERN_INFO "pICS_%s: tegra_init_suspend(tegra_suspend_platform)",__func__);
 
 	tegra_init_suspend(&tegra_suspend_platform);
-	tegra_init_idle(&tegra_suspend_platform);
+	/*tegra_init_idle(&tegra_suspend_platform);*/
 }
 
 static int tegra_reboot_notify(struct notifier_block *nb,
@@ -1067,15 +1048,13 @@ static void __init tegra_setup_reboot(void)
 static int __init tegra_setup_data(void)
 {
 	printk(KERN_INFO "pICS_%s: empty list of devices",__func__);
-	platform_add_devices(nvodm_devices, ARRAY_SIZE(nvodm_devices));
+/*	platform_add_devices(nvodm_devices, ARRAY_SIZE(nvodm_devices));*/
 	return 0;
 }
 postcore_initcall(tegra_setup_data);
 
 void __init tegra_setup_nvodm(bool standard_i2c, bool standard_spi)
 {
-	printk(KERN_INFO "pICS_%s: NvRmGpioOpen(s_hRmGlobal, &s_hGpioGlobal); \n",__func__);
-	NvRmGpioOpen(s_hRmGlobal, &s_hGpioGlobal);
 	tegra_setup_debug_uart();
 	tegra_setup_hcd();
 	tegra_setup_hsuart();

@@ -4,16 +4,8 @@
 #include <linux/usb/android_composite.h>
 
 #include <asm/mach-types.h>
-/*
-#include <mach/nvrm_linux.h>
 
-#include <nvrm_module.h>
-#include <nvrm_boot.h>
-#include <nvodm_services.h>
-
-#include "nvrm_power.h"
-*/
-#include "board-mot.h"
+#include "board-olympus.h"
 
 #define BOOT_MODE_MAX_LEN 30
 
@@ -193,12 +185,8 @@ static struct platform_device tegra_android_device = {
 static struct usb_mass_storage_platform_data tegra_usb_fsg_platform = {
 	.vendor = "Motorola",
 	.product = "Mass Storage",
-#if defined(CONFIG_USB_MOT_MSC_CDROM)
-	.nluns = 3, /* one for cdrom, one for external sd and one for eMMC */
-#else
 	.nluns = 2,   /* one for external sd and one for eMMC */
-#endif
-	.bulk_size = 16384,
+	/*.bulk_size = 16384,*/ /* ICS not sure if needed*/
 };
 static struct platform_device tegra_usb_fsg_device = {
 	.name = "usb_mass_storage",
@@ -276,14 +264,9 @@ void tegra_get_serial_number(void)
 #endif
 }
 
-void mot_setup_gadget(void)
+void olympus_setup_gadget(void)
 {
-	unsigned int chip_id[2];
 	char serial[17];
-
-/*	NvRmQueryChipUniqueId(s_hRmGlobal, sizeof(chip_id), (void *)chip_id);
-	printk(KERN_INFO "pICS_%s: chip_id[0] = %08x, chip_id[1] = %08x",__func__, chip_id[0], chip_id[1]);
-	snprintf(serial, sizeof(serial), "%08x%08x", chip_id[1], chip_id[0]);*/
 
 	snprintf(serial, sizeof(serial), "037c7148423ff097");
 
@@ -302,7 +285,7 @@ void mot_setup_gadget(void)
 	if (!strncmp(boot_mode, "bp-tools", BOOT_MODE_MAX_LEN)) {
 		tegra_android_device.dev.platform_data = &andusb_plat_bp;
 		acm_pdata.num_inst = 4;
-		acm_pdata.use_iads = 1;
+		/*acm_pdata.use_iads = 1;*/
 	}
 
 	platform_device_register(&acm_device);

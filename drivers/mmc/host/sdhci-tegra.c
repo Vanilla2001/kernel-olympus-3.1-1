@@ -1054,6 +1054,10 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 		gpio_direction_output(plat->power_gpio, 1);
 	}
 
+#ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
+	sdhost->start_offset = plat->offset;
+#endif
+
 #if defined CONFIG_MACH_BOSE_ATT
 	if (plat->cd_gpio == 0xffff) {
 		card_sdhost = host;

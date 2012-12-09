@@ -56,6 +56,13 @@ g_nokia-y			:= nokia.o
 g_webcam-y			:= webcam.o
 g_ncm-y				:= ncm.o
 g_android-y			:= android.o
+g_mot_android-objs		:= mot_android.o f_usbnet.o f_adb.o f_mass_storage.o f_acm.o u_serial.o f_rndis.o u_ether.o
+ifeq ($(CONFIG_USB_ANDROID_PVMTP),y)
+	g_mot_android-objs		+= mtp.o
+else
+	g_mot_android-objs		+= f_mtp.o
+endif
+
 
 obj-$(CONFIG_USB_ZERO)		+= g_zero.o
 obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
@@ -76,3 +83,4 @@ obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
 obj-$(CONFIG_USB_G_NCM)		+= g_ncm.o
 obj-$(CONFIG_USB_G_ANDROID)	+= g_android.o
 obj-$(CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE)	+= multi_config.o
+obj-$(CONFIG_USB_MOT_ANDROID)  += g_mot_android.o

@@ -37,7 +37,7 @@
 #include "board.h"
 #include "hwrev.h"
 
-#include "board-mot.h"
+#include "board-olympus.h"
 
 #define PWRUP_FACTORY_CABLE         0x00000020 /* Bit 5  */
 #define PWRUP_INVALID               0xFFFFFFFF
