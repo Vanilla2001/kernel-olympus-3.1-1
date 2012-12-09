@@ -1055,7 +1055,7 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
-	sdhost->start_offset = plat->offset;
+	host->start_offset = plat->offset;
 #endif
 
 #if defined CONFIG_MACH_BOSE_ATT

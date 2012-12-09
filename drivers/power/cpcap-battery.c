@@ -42,8 +42,11 @@
 #define CPCAP_BATT_IRQ_MACRO   0x10
 #define CPCAP_BATT_IRQ_LOWBPHL 0x20
 
-static int cpcap_batt_ioctl(struct inode *inode,
+/*static int cpcap_batt_ioctl(struct inode *inode,
 			    struct file *file,
+			    unsigned int cmd,
+			    unsigned long arg);*/
+static long cpcap_batt_ioctl(struct file *file,
 			    unsigned int cmd,
 			    unsigned long arg);
 static unsigned int cpcap_batt_poll(struct file *file, poll_table *wait);
@@ -82,7 +85,7 @@ struct cpcap_batt_ps {
 static const struct file_operations batt_fops = {
 	.owner = THIS_MODULE,
 	.open = cpcap_batt_open,
-	.ioctl = cpcap_batt_ioctl,
+	.unlocked_ioctl = cpcap_batt_ioctl,
 	.read = cpcap_batt_read,
 	.poll = cpcap_batt_poll,
 };
@@ -235,8 +238,11 @@ static ssize_t cpcap_batt_read(struct file *file,
 	return ret;
 }
 
-static int cpcap_batt_ioctl(struct inode *inode,
+/*static int cpcap_batt_ioctl(struct inode *inode,
 			    struct file *file,
+			    unsigned int cmd,
+			    unsigned long arg)*/
+static long cpcap_batt_ioctl(struct file *file,
 			    unsigned int cmd,
 			    unsigned long arg)
 {

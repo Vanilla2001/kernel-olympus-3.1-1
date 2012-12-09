@@ -116,6 +116,10 @@ struct sdhci_host {
 	unsigned long		spinlock_flags;
 #endif
 
+#ifdef CONFIG_EMBEDDED_MMC_START_OFFSET
+	unsigned int		start_offset;	/* Zero-offset for MBR */
+#endif
+
 	int flags;		/* Host attributes */
 #define SDHCI_USE_SDMA		(1<<0)	/* Host is SDMA capable */
 #define SDHCI_USE_ADMA		(1<<1)	/* Host is ADMA capable */

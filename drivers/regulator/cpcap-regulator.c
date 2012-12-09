@@ -437,8 +437,11 @@ static struct {
                             0},
 };
 
+/*static int cpcap_regulator_set_voltage(struct regulator_dev *rdev,
+				       int min_uV, int max_uV)*/
 static int cpcap_regulator_set_voltage(struct regulator_dev *rdev,
-				       int min_uV, int max_uV)
+				       int min_uV, int max_uV,
+				       unsigned int *selector)
 {
 	struct cpcap_device *cpcap;
 	int regltr_id;
@@ -748,11 +751,14 @@ static int __devinit cpcap_regulator_probe(struct platform_device *pdev)
 	/* this is ok since the cpcap is still reachable from the rdev */
 	platform_set_drvdata(pdev, rdev);
 
+	/*ICS TODO??*/
 	if (reg_id == CPCAP_SW5) {
 		data->regulator_init =
 			cpcap->regulator_pdev[CPCAP_VUSB]->dev.platform_data;
-		data->regulator_init->supply_regulator_dev =
-			rdev_get_dev(rdev);
+/*		data->regulator_init->supply_regulator_dev =
+			rdev_get_dev(rdev);*/
+		data->regulator_init->supply_regulator = "vusb";
+
 		platform_device_add(cpcap->regulator_pdev[CPCAP_VUSB]);
 	}
 

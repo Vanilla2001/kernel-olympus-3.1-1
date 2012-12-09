@@ -29,10 +29,12 @@
 #define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))
 #endif /* KERNEL_VERSION */
 
+#if 0 
 /* 2.6.32 is the highest version currently supported */
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32)
 #error "Kernel versions after 2.6.32 are not supported"
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(2,6,32) */
+#endif
 
 /* 2.4 is not supported */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
@@ -136,5 +138,9 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
 #define LINUX_HAS_SKB_DST_FUNCTIONS 1
 #endif /* >= 2.6.31 */
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,10)
+#define LINUX_HAS_SKB_DST_FUNCTIONS 1
+#endif /* >= 3.1.10 */
 
 #endif /* LINUX_VERSION_H */

@@ -534,6 +534,13 @@ config APANIC
 	 Driver which handles kernel panics and attempts to write
 	 critical debugging data to flash.
 
+config APANIC_MMC
+	bool "Android kernel panic diagnostics driver"
+	default n
+	---help---
+	 Driver which handles kernel panics and attempts to write
+	 critical debugging data to an MMC device.
+
 config APANIC_PLABEL
 	string "Android panic dump flash partition label"
 	depends on APANIC
@@ -611,14 +618,25 @@ config MAX1749_VIBRATOR
 	---help---
 	Adds a timed output vibrator device node for MAX1749 vibrator motor
 
+config MOT_TCMD_DRIVER
+       bool "Motorola tcmd driver"
+       default n
+
+#config MOT_VPNCLIENT
+#	tristate "Motorola Authentec vpnclient userspace module"
+#	default m
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/iwmc3200top/Kconfig"
 source "drivers/misc/ti-st/Kconfig"
+source "drivers/misc/ts27010mux/Kconfig"
 source "drivers/misc/lis3lv02d/Kconfig"
 source "drivers/misc/carma/Kconfig"
 source "drivers/misc/tegra-baseband/Kconfig"
 source "drivers/misc/modem_if/Kconfig"
+source "drivers/misc/sec/Kconfig"
+source "drivers/misc/radio_ctrl/Kconfig"
 
 endif # MISC_DEVICES
