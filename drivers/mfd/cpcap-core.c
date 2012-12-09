@@ -34,8 +34,9 @@
 
 extern void NvRmPrivPostPmuInit(void);
 
-static int ioctl(struct inode *inode,
-		 struct file *file, unsigned int cmd, unsigned long arg);
+/*static int ioctl(struct inode *inode,
+		 struct file *file, unsigned int cmd, unsigned long arg);*/
+static long ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static int __devinit cpcap_probe(struct spi_device *spi);
 static int __devexit cpcap_remove(struct spi_device *spi);
 static void cpcap_standby_macro_init(void);
@@ -47,7 +48,7 @@ static int cpcap_resume(struct spi_device *spi);
 
 const static struct file_operations cpcap_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = ioctl,
+	.unlocked_ioctl = ioctl,
 };
 
 static struct miscdevice cpcap_dev = {
@@ -693,8 +694,9 @@ static int audio_pwr_ioctl(unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-static int ioctl(struct inode *inode,
-		 struct file *file, unsigned int cmd, unsigned long arg)
+/*static int ioctl(struct inode *inode,
+		 struct file *file, unsigned int cmd, unsigned long arg)*/
+static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int retval = -ENOTTY;
 	unsigned int cmd_num;

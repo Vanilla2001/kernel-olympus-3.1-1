@@ -79,8 +79,9 @@ struct cpcap_uc_data {
 static struct cpcap_uc_data *cpcap_uc_info;
 
 static int fops_open(struct inode *inode, struct file *file);
-static int fops_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, unsigned long arg);
+/*static int fops_ioctl(struct inode *inode, struct file *file,
+		      unsigned int cmd, unsigned long arg);*/
+static long fops_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static ssize_t fops_write(struct file *file, const char *buf,
 			  size_t count, loff_t *ppos);
 static ssize_t fops_read(struct file *file, char *buf,
@@ -89,7 +90,7 @@ static ssize_t fops_read(struct file *file, char *buf,
 
 static const struct file_operations fops = {
 	.owner = THIS_MODULE,
-	.ioctl = fops_ioctl,
+	.unlocked_ioctl = fops_ioctl,
 	.open = fops_open,
 	.read = fops_read,
 	.write = fops_write,
@@ -550,8 +551,10 @@ err:
 	return retval;
 }
 
-static int fops_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, unsigned long arg)
+/*static int fops_ioctl(struct inode *inode, struct file *file,
+		      unsigned int cmd, unsigned long arg)*/
+static long fops_ioctl(struct file *file, unsigned int cmd,
+		       unsigned long arg)
 {
 	int retval = -ENOTTY;
 	struct cpcap_uc_data *data = file->private_data;

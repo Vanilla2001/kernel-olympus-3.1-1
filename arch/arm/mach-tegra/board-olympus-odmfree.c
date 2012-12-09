@@ -339,12 +339,10 @@ static void __init tegra_setup_sdhci(void) {
 	
 	/* Olympus P3+, Etna P2+, Etna S3+, Daytona and Sunfire
 	   can handle shutting down the external SD card. */
-/*	if ( (HWREV_TYPE_IS_FINAL(system_rev) || (HWREV_TYPE_IS_PORTABLE(system_rev) && (HWREV_REV(system_rev) >= HWREV_REV_3)))) {
-		tegra_sdhci_platform[2].mmc_data {
-			.embedded_sdio = (char *)tegra_sdio_ext_reg_str;
+	if ( (HWREV_TYPE_IS_FINAL(system_rev) || (HWREV_TYPE_IS_PORTABLE(system_rev) && (HWREV_REV(system_rev) >= HWREV_REV_3)))) 			{
+		tegra_sdhci_platform[2].regulator_str = (char *)tegra_sdio_ext_reg_str;
 		}
-	}
-*/
+
 /*	tegra_sdhci_platform[3].offset = 0x680000; */ /*IMPORTANT this is tegrapart related this one is for d00*/
 
 		/* check if an "MBR" partition was parsed from the tegra partition
