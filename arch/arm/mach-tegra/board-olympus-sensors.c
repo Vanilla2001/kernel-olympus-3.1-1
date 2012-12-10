@@ -5,7 +5,6 @@
 #include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
-#include <linux/bu52014hfv.h>
 #include <linux/i2c/akm8975.h>
 #include <linux/isl29030.h>
 #include <linux/kxtf9.h>
@@ -28,6 +27,8 @@
 #define TEGRA_L3G4200D_IRQ_GPIO		TEGRA_GPIO_PH2
 
 #define TEGRA_AKM8975_RESET_GPIO	TEGRA_GPIO_PK5
+#define PWRUP_BAREBOARD             0x00100000 /* Bit 20 */
+
 
 /*
  * Vibrator
@@ -192,7 +193,7 @@ static struct platform_device tegra_tmon = {
 };
 
 
-
+/*
 static struct bu52014hfv_platform_data bu52014hfv_platform_data = {
 	.docked_north_gpio = TEGRA_HF_NORTH_GPIO,
 	.docked_south_gpio = TEGRA_HF_SOUTH_GPIO,
@@ -200,7 +201,7 @@ static struct bu52014hfv_platform_data bu52014hfv_platform_data = {
 	.north_is_desk = 1,
 	.set_switch_func = cpcap_set_dock_switch,
 };
-
+*/
 
 /*
  * Accelerometer
@@ -417,6 +418,7 @@ struct platform_device akm8975_platform_device = {
 /*
  * Hall Effect Sensor
  */
+/*
 static struct platform_device ap20_hall_effect_dock = {
 	.name	= BU52014HFV_MODULE_NAME,
 	.id	= -1,
@@ -424,7 +426,7 @@ static struct platform_device ap20_hall_effect_dock = {
 		.platform_data  = &bu52014hfv_platform_data,
 	},
 };
-
+*/
 static void tegra_vibrator_init(void)
 {
         if( gpio_request(tegra_vib_gpio_data.gpio, "vib_en") < 0) return;
@@ -492,11 +494,8 @@ static struct platform_device *tegra_sensors[] __initdata = {
 	&isl29030_als_ir,
 	&kxtf9_platform_device,
 	&akm8975_platform_device,
-	&ap20_hall_effect_dock,
+/*	&ap20_hall_effect_dock,*/
 	&tegra_vib_gpio,
-#ifdef CONFIG_VIB_PWM
-	&tegra_vib_pwm,
-#endif
 	&tegra_tmon,
 };
 
@@ -512,7 +511,7 @@ static struct spi_board_info aes1750_spi_device __initdata = {
     .platform_data = &aes1750_interrupt,
     .irq = 0,
 };
-
+/*
 static struct regulator *tegra_l3g4200d_regulator=NULL;
 
 static void tegra_l3g4200d_exit(void)
@@ -568,7 +567,7 @@ struct l3g4200d_platform_data tegra_gyro_pdata = {
         .power_off = tegra_l3g4200d_power_off,
 
 };
-
+*/
 void __init mot_sensors_init(void)
 {
 	kxtf9_init();
