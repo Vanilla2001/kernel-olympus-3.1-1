@@ -321,22 +321,20 @@ static struct i2c_board_info tegra_i2c_bus3_board_info[] = {
 };
 
 static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
-	/* name		parent		rate		enabled */
-	{ "uarta",	"pll_p",	216000000,	true},
-	{ "uartb",	"pll_c",	216000000,	true},
-	{ "uartc",	"pll_m",	216000000,	true},
-	{ "uartd",	"clk_m",	216000000,	true},
-	/*{ "emc",	"pll_p",	0,		true},
-	{ "emc",	"pll_m",	600000000,	false},*/
+	/* name		parent		rate		enabled */        
+	{ "uartb",	"pll_p",	216000000,	true},
+	{ "uartc",	"pll_m",	600000000,	true},
+	{ "uartd",	"pll_p",	216000000,	true},
+	{ "emc",	"pll_m",	600000000,	true},
 	{ "pll_m",	NULL,		600000000,	true},
 	{ "mpe",	"pll_m",	250000000,	false},
 	{ "pll_a",	NULL,		56448000,	false},
 	{ "pll_a_out0",	NULL,		11289600,	false},
-	{ "i2s1",	"pll_p",	24000000,	false},
-	{ "i2s2",	"pll_p",	2000000,	false},
-	{ "sdmmc2",	"pll_m",	48000000,	false},
-	{ "spdif_out",	"pll_a_out0",	5644800,	false},
-	{ "sdmmc3",	"pll_m",	48000000,	false},
+	{ "i2s1",	"pll_a_out0",	2822400,	false},
+	{ "i2s2",	"clk_m",	26000000,	false},
+	{ "sdmmc4",	"pll_p",	48000000,	true},
+	{ "sdmmc2",	"pll_p",	24000000,	false},
+	{ "spdif_out",	"pll_a_out0",	11289600,	false},
 	{ NULL,		NULL,		0,		0},
 };
 
