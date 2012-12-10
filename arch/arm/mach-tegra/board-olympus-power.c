@@ -42,7 +42,7 @@
 #define PWRUP_FACTORY_CABLE         0x00000020 /* Bit 5  */
 #define PWRUP_INVALID               0xFFFFFFFF
 
-extern void tegra_machine_restart(char mode, const char *cmd);
+extern void arch_reset(char mode, const char *cmd);
 static int disable_rtc_alarms(struct device *dev, void *cnt);
 
 void mot_system_power_off(void)
@@ -56,7 +56,7 @@ void mot_system_power_off(void)
 	{
 		printk("External power detected- rebooting\r\n");
 		cpcap_misc_clear_power_handoff_info();
-		tegra_machine_restart(0,"");
+		arch_reset(0,"");
 		while(1);
 	}
 
@@ -88,7 +88,7 @@ void mot_system_power_off(void)
 
 	mdelay(500);
 	printk("Power-off failed (Factory cable inserted?), rebooting\r\n");
-	tegra_machine_restart(0,"");
+	arch_reset(0,"");
 }
 
 static int is_olympus_ge_p0(struct cpcap_device *cpcap)
@@ -807,51 +807,13 @@ struct spi_board_info tegra_spi_devices[] __initdata = {
 #endif
 };
 
-/*
-struct cpcap_usb_connected_data {
-	NvOdmServicesGpioHandle h_gpio;
-	NvOdmGpioPinHandle h_pin;
-	NvU32 port;
-	NvU32 pin;
-	enum cpcap_accy accy;
-};*/
-
 static int cpcap_usb_connected_probe(struct platform_device *pdev)
 {
-/*	struct cpcap_usb_connected_data *data;*/
 	struct cpcap_accy_platform_data *pdata = pdev->dev.platform_data;
 
 	int nr_gpio;
 	int ret;
 	static int count_f7 = 0;
-
-#if 0
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if(!data)
-		return -ENOMEM;
-
-	data->accy = pdata->accy;
-
-
-
-	
-	/* Configure CPCAP-AP20 USB Mux to AP20 */
-	data->port = NVODM_PORT('v'); 
-	printk(KERN_INFO "pICS_%s: data->port = NVODM_PORT('v') = %lu\n",__func__, data->port);
-	data->pin = 6;
-	data->h_gpio = NvOdmGpioOpen(); 
-	printk(KERN_INFO "pICS_%s: data->h_gpio = NvOdmGpioOpen()\n",__func__);
-	data->h_pin = NvOdmGpioAcquirePinHandle(data->h_gpio, data->port, data->pin);
-	printk(KERN_INFO "pICS_%s: data->h_pin = NvOdmGpioAcquirePinHandle(data->h_gpio, data->port, data->pin)\n",__func__);
-	NvOdmGpioConfig(data->h_gpio, data->h_pin, NvOdmGpioPinMode_Output);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioConfig(data->h_gpio, data->h_pin, NvOdmGpioPinMode_Output)\n",__func__);
-	NvOdmGpioSetState(data->h_gpio, data->h_pin, 0x1);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioSetState(data->h_gpio, data->h_pin, 0x1)\n",__func__);
-#endif
-/*	data->port = 21;
-	data->pin = 6;
-	data->h_gpio = 174;
-	data->h_pin = */
 
 try_f7:
 
@@ -888,13 +850,13 @@ try_f7:
 	/* when the phone is the host do not start the gadget driver */
 	if((pdata->accy == CPCAP_ACCY_USB) || (pdata->accy == CPCAP_ACCY_FACTORY)) {
 #ifdef CONFIG_USB_TEGRA_OTG
-		tegra_otg_set_mode(0);
+	/*ICS	tegra_otg_set_mode(0);*/
 #endif
-		android_usb_set_connected(1, pdata->accy);
+	/*ICS	android_usb_set_connected(1, pdata->accy);*/
 	}
 	if(pdata->accy == CPCAP_ACCY_USB_DEVICE) {
 #ifdef CONFIG_USB_TEGRA_OTG
-		tegra_otg_set_mode(1);
+		/*ICS tegra_otg_set_mode(1);*/
 #endif
 	}
 	mdm_ctrl_set_usb_ipc(true);
@@ -910,15 +872,6 @@ static int cpcap_usb_connected_remove(struct platform_device *pdev)
 	int nr_gpio;
 
 	mdm_ctrl_set_usb_ipc(false);
-#if 0
-	/* Configure CPCAP-AP20 USB Mux to CPCAP */
-	NvOdmGpioSetState(data->h_gpio, data->h_pin, 0x0);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioSetState (data->h_gpio, data->h_pin, 0x0)\n",__func__);
-	NvOdmGpioReleasePinHandle(data->h_gpio, data->h_pin);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioReleasePinHandle(data->h_gpio, data->h_pin)\n",__func__);
-	NvOdmGpioClose(data->h_gpio);
-	printk(KERN_INFO "pICS_%s: NvOdmGpioClose(data->h_gpio)\n",__func__);
-#endif
 	
 	nr_gpio = 174;
 	gpio_set_value(nr_gpio, 0);
@@ -929,11 +882,11 @@ static int cpcap_usb_connected_remove(struct platform_device *pdev)
 	
 	tegra_gpio_disable(nr_gpio);
 
-	if((pdata->accy == CPCAP_ACCY_USB) || (pdata->accy == CPCAP_ACCY_FACTORY))
-		android_usb_set_connected(0, pdata->accy);
+/*	if((pdata->accy == CPCAP_ACCY_USB) || (pdata->accy == CPCAP_ACCY_FACTORY))
+		android_usb_set_connected(0, pdata->accy);*/
 
 #ifdef CONFIG_USB_TEGRA_OTG
-	tegra_otg_set_mode(2);
+	/*tegra_otg_set_mode(2);*/
 #endif
 
 /*	kfree(data);*/

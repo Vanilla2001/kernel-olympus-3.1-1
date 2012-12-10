@@ -295,7 +295,7 @@ static struct i2c_board_info tegra_i2c_bus0_board_info[] = {
 		/* XMegaT touchscreen driver */
 		I2C_BOARD_INFO(QTOUCH_TS_NAME, XMEGAT_I2C_ADDR),
 		.irq = TOUCH_GPIO_INTR,
-		.platform_data = &ts_platform_olympus_m_1,
+		.platform_data = &ts_platform_olympus_p_1_43,
 	},
 
 #if defined(CONFIG_TEGRA_ODM_OLYMPUS)

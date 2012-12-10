@@ -11,6 +11,16 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+config TOUCHSCREEN_QUANTUM_OBP
+	tristate "Quantum OBP based touchscreens"
+	depends on I2C
+	help
+		Say Y here if you have a Quantum touchscreen that uses
+		the Object Based Protocol based firmware.
+
+		If unsure, say N.
+
+
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
 	depends on MFD_88PM860X

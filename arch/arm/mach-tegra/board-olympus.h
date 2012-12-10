@@ -10,7 +10,7 @@ extern struct kxtf9_platform_data kxtf9_data;
 extern struct akm8975_platform_data akm8975_data;
 extern struct isl29030_platform_data isl29030_als_ir_data_Olympus;
 extern struct lm3532_platform_data lm3532_pdata;
-extern struct qtouch_ts_platform_data ts_platform_olympus_m_1;
+extern struct qtouch_ts_platform_data ts_platform_olympus_p_1_43;
 extern struct cpcap_platform_data tegra_cpcap_data;
 extern struct cpcap_leds tegra_cpcap_leds;
 extern struct platform_driver cpcap_usb_connected_driver;

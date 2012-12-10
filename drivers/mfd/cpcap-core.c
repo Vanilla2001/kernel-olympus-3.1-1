@@ -32,7 +32,7 @@
 #include <asm/bootinfo.h>
 #endif
 
-extern void NvRmPrivPostPmuInit(void);
+/*extern void NvRmPrivPostPmuInit(void);*/
 
 /*static int ioctl(struct inode *inode,
 		 struct file *file, unsigned int cmd, unsigned long arg);*/
@@ -492,7 +492,7 @@ static int __devinit cpcap_probe(struct spi_device *spi)
 		platform_device_add(cpcap->regulator_pdev[i]);
 	}
 
-        NvRmPrivPostPmuInit();
+      /*  NvRmPrivPostPmuInit();*/
 
 	platform_add_devices(cpcap_devices, ARRAY_SIZE(cpcap_devices));
 

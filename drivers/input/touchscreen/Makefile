@@ -70,3 +70,4 @@ else
 obj-$(CONFIG_TOUCHSCREEN_ATMEL_MXT224E)     += atmel_mxt224E.o
 obj-$(CONFIG_TOUCHSCREEN_ATMEL_MXT224E)     += atmel_mxt224E_cfg.o
 endif
+obj-$(CONFIG_TOUCHSCREEN_QUANTUM_OBP)	+= qtouch_obp_ts.o

@@ -340,6 +340,21 @@ done:
 	return presence;
 }
 
+/* Temporary work-around for the code that expects /sys/devices/w1 bus master/89-000000000000 directory */
+static void tegra_w1_search_bus(void *data, struct w1_master *dev, u8 search_type, w1_slave_found_callback slave_found)
+{
+   u64 rn, rn_le;
+   struct w1_reg_num *tmp = (struct w1_reg_num *) &rn;   
+
+   tmp->family = W1_EEPROM_DS2502;
+   tmp->id     = 0x000000000000;
+  
+	rn_le = cpu_to_le64(rn);	
+   tmp->crc = w1_calc_crc8((u8 *)&rn_le, 7);
+
+   slave_found(dev, rn);
+}
+
 static int tegra_w1_probe(struct platform_device *pdev)
 {
 	int rc;
@@ -395,6 +410,7 @@ static int tegra_w1_probe(struct platform_device *pdev)
 	dev->bus_master.data = dev;
 	dev->bus_master.touch_bit = tegra_w1_touch_bit;
 	dev->bus_master.reset_bus = tegra_w1_reset_bus;
+	dev->bus_master.search = tegra_w1_search_bus;
 
 	spin_lock_init(&dev->spinlock);
 	mutex_init(&dev->mutex);

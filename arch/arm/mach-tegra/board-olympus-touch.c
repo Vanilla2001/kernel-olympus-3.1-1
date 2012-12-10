@@ -638,7 +638,7 @@ void mot_setup_touch(struct i2c_board_info *info)
 	printk("TOUCH: determining size of the screen\n");
 	/* Setup Olympus Mortable as a default */ 
 	info->platform_data = 
-		&ts_platform_olympus_m_1;
+		&ts_platform_olympus_p_1_43;
 	if (HWREV_TYPE_IS_PORTABLE(system_rev)  ||
 	    HWREV_TYPE_IS_FINAL(system_rev) )
 	{

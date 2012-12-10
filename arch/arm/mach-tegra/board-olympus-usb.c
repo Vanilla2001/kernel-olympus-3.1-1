@@ -264,7 +264,7 @@ void tegra_get_serial_number(void)
 #endif
 }
 
-void olympus_setup_gadget(void)
+void mot_setup_gadget(void)
 {
 	char serial[17];
 
