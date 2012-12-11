@@ -7,6 +7,7 @@
 #include <linux/platform_device.h>
 #include <linux/major.h>
 #include <linux/tcmd_driver.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -15,8 +16,8 @@
 
 #include <mach/iomap.h>
 #include <mach/mdm_ctrl.h>
-/*#include <mach/sec_linux.h>
-#include <mach/sdhci-simple.h>*/
+/*#include <mach/sec_linux.h>*/
+#include <mach/sdhci-simple.h>
 #include <mach/nand.h>
 
 #include "gpio-names.h"

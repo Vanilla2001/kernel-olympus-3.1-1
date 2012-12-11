@@ -123,6 +123,13 @@ extern unsigned long tegra_grhost_aperture;
 
 extern struct sys_timer tegra_timer;
 
+#ifndef CONFIG_MACH_BOSE_ATT
+extern int n1_panel_pre_enable(void);
+extern int n1_panel_disable(void);
+extern int cmc623_suspend(struct early_suspend *h);
+extern int cmc623_resume(struct early_suspend *h);
+#endif
+
 enum board_fab {
 	BOARD_FAB_A = 0,
 	BOARD_FAB_B,

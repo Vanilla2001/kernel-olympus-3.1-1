@@ -132,6 +132,7 @@ struct sdhci_host {
 
 	unsigned int version;	/* SDHCI spec. version */
 
+	unsigned int last_clk;	/* Last configured clock */
 	unsigned int max_clk;	/* Max possible freq (MHz) */
 	unsigned int timeout_clk;	/* Timeout freq (KHz) */
 	unsigned int clk_mul;	/* Clock Muliplier value */

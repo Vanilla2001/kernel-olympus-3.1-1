@@ -280,9 +280,7 @@ struct sdhci_ops {
 	int	(*switch_signal_voltage)(struct sdhci_host *host,
 				unsigned int signal_voltage);
 	int	(*execute_freq_tuning)(struct sdhci_host *sdhci);
-#if defined CONFIG_MACH_BOSE_ATT
-	int (*card_detect)(struct sdhci_host *host);
-#endif
+	int 	(*card_detect)(struct sdhci_host *host);
 };
 
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS

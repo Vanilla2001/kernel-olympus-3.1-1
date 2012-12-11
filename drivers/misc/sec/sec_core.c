@@ -37,7 +37,7 @@
 #undef  SYSFS_FUSE_VOLTAGE
 #define SYSFS_RAM_INFO
 #define NV_DDK_FUSE_API_AVAIL   1
-
+/*
 #include "nvcommon.h"
 #include "../nvrm/core/common/nvrm_chipid.h"
 #include "../nvrm/core/common/nvrm_structure.h"
@@ -46,7 +46,7 @@
 #ifdef NV_DDK_FUSE_API_AVAIL
 #include "nvddk_fuse.h"
 #endif
-
+*/
 static int SecGetMIO(void *data, unsigned int parameter);
 static int SecProvisionModelID(unsigned int model_id);
 static int SecGPIO(unsigned int parameter);
@@ -139,9 +139,9 @@ static struct kobj_attribute sec_nvfuse_FuseVoltage_attribute =
 #include <linux/sysfs.h>
 #include <linux/kobject.h>
 #include <linux/apanic.h>
-#include "nvrm_hardware_access.h"
+/*#include "nvrm_hardware_access.h"
 #include "nvrm_module.h"
-#include <ap20/aremc.h>
+#include <ap20/aremc.h>*/
 
 #define SEC_UNKNOWN         "unknown"
 #define SEC_RAM_MAN_ELPIDA  "Elpida-"

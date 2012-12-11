@@ -75,7 +75,7 @@ static struct map_desc tegra_io_desc[] __initdata = {
 		.length = IO_SDMMC_SIZE,
 		.type = MT_DEVICE,
 	},
-	{
+/*	{
 		.virtual = IO_PPCS_VIRT,
 		.pfn = __phys_to_pfn(IO_PPCS_PHYS),
 		.length = IO_PPCS_SIZE,
@@ -86,7 +86,7 @@ static struct map_desc tegra_io_desc[] __initdata = {
 		.pfn = __phys_to_pfn(IO_PCIE_PHYS),
 		.length = IO_PCIE_SIZE,
 		.type = MT_DEVICE,
-	}
+	}*/
 };
 
 void __init tegra_map_common_io(void)
@@ -100,7 +100,7 @@ void __init tegra_map_common_io(void)
 void __iomem *tegra_ioremap(unsigned long p, size_t size, unsigned int type)
 {
 	void __iomem *v = IO_ADDRESS(p);
-
+#if 0
 	/*
 	 * __arm_ioremap fails to set the domain of ioremapped memory
 	 * correctly, only use it on physical memory.
@@ -120,6 +120,9 @@ void __iomem *tegra_ioremap(unsigned long p, size_t size, unsigned int type)
 	 * mapped, there's nothing we can do to map it safely.
 	 */
 	BUG_ON(v == NULL);
+#endif
+	if (v == NULL)
+		v = __arm_ioremap(p, size, type);
 
 	return v;
 }

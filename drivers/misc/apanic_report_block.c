@@ -128,7 +128,7 @@ static int apanic_proc_read(char *buffer, char **start, off_t offset,
 		       ctx->devpath, PTR_ERR(bdev));
 		return -1;
 	}
-	err = blkdev_get(bdev, FMODE_READ);
+	err = blkdev_get(bdev, FMODE_READ, NULL);
 	if (err) {
 		printk(KERN_ERR DRVNAME "failed to open device %s (%d)\n",
 		       ctx->devpath, err);
@@ -212,7 +212,7 @@ static void mmc_panic_erase(void)
 		       ctx->devpath, PTR_ERR(bdev));
 		return;
 	}
-	err = blkdev_get(bdev, FMODE_WRITE);
+	err = blkdev_get(bdev, FMODE_WRITE, NULL);
 	if (err) {
 		printk(KERN_ERR DRVNAME "failed to open device %s (%d)\n",
 		       ctx->devpath, err);
@@ -293,7 +293,7 @@ static int apanic_trigger_check(struct file *file, const char __user *devpath,
 		       devpath, PTR_ERR(bdev));
 		return -1;
 	}
-	err = blkdev_get(bdev, FMODE_READ);
+	err = blkdev_get(bdev, FMODE_READ, NULL);
 	if (err) {
 		printk(KERN_ERR DRVNAME "failed to open device %s (%d)\n",
 		       devpath, err);

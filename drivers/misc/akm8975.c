@@ -577,7 +577,7 @@ static struct miscdevice akmd_device = {
 	.fops = &akmd_fops,
 };
 
-int akm8975_probe(struct i2c_client *client,
+int m_akm8975_probe(struct i2c_client *client,
 		  const struct i2c_device_id *devid)
 {
 	struct akm8975_data *akm;
@@ -730,7 +730,7 @@ static const struct i2c_device_id akm8975_id[] = {
 MODULE_DEVICE_TABLE(i2c, akm8975_id);
 
 static struct i2c_driver akm8975_driver = {
-	.probe = akm8975_probe,
+	.probe = m_akm8975_probe,
 	.remove = akm8975_remove,
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	.resume = akm8975_resume,

@@ -27,6 +27,8 @@
 #ifdef CONFIG_RTC_INTF_SECCLKD
 #include <linux/miscdevice.h>
 
+#define TASK_INTERRUPTIBLE	1
+
 #define CNT_MASK  0xFFFF
 #endif
 #define SECS_PER_DAY 86400
@@ -36,7 +38,7 @@
 
 #ifdef CONFIG_RTC_INTF_SECCLKD
 static int cpcap_rtc_open(struct inode *inode, struct file *file);
-static int cpcap_rtc_ioctl(struct inode *inode, struct file *file,
+static long cpcap_rtc_ioctl(struct file *file,
 			    unsigned int cmd, unsigned long arg);
 static unsigned int cpcap_rtc_poll(struct file *file, poll_table *wait);
 static int cpcap_rtc_read_time(struct device *dev, struct rtc_time *tm);
@@ -66,7 +68,7 @@ struct cpcap_rtc {
 static const struct file_operations cpcap_rtc_fops = {
 	.owner = THIS_MODULE,
 	.open = cpcap_rtc_open,
-	.ioctl = cpcap_rtc_ioctl,
+	.unlocked_ioctl = cpcap_rtc_ioctl,
 	.poll = cpcap_rtc_poll,
 };
 
@@ -84,8 +86,7 @@ static int cpcap_rtc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int cpcap_rtc_ioctl(struct inode *inode,
-			    struct file *file,
+static long cpcap_rtc_ioctl( struct file *file,
 			    unsigned int cmd,
 			    unsigned long arg)
 {
