@@ -153,6 +153,40 @@ static int max_cpu_current;
  */
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	/* name		parent		rate		enabled */
+#ifdef CONFIG_MACH_OLYMPUS
+	{ "clk_m",	NULL,		0,		true }, /* clk = 26000000*/
+	{ "emc",	NULL,		0,		true }, /* clk = 600000000 */
+	{ "cpu",	NULL,		0,		true }, /* clk = 1000000000 */
+	{ "kfuse",	NULL,		0,		true }, /* clk = 26000000 */
+	{ "fuse",	NULL,		0,		true }, /* clk = 26000000 */
+	{ "sclk",	NULL,		0,		true }, /* clk = 80000000 */
+	{ "pll_p",	NULL,		216000000,	true },
+	{ "pll_p_out1",	"pll_p",	28800000,	true },
+	{ "pll_p_out2",	"pll_p",	48000000,	true },
+	{ "pll_p_out3",	"pll_p",	72000000,	true },
+	{ "pll_p_out4",	"pll_p",	108000000,	true },
+	{ "pll_m",	"clk_m",	0,		true }, /*clk = 600000000*/
+	{ "pll_m_out1",	"pll_m",	120000000,	true },
+	{ "sclk",	"pll_c_out1",	40000000,	true }, /*clk = 80000000*/
+	{ "hclk",	"sclk",		40000000,	true }, /*clk = 80000000*/
+	{ "pclk",	"hclk",		40000000,	true },
+	{ "mpe",	"pll_c",	0,		false }, /*clk = 300000000*/
+	{ "epp",	"pll_c",	0,		false }, /*clk = 300000000*/
+	{ "vi_sensor",	"pll_c",	0,		false }, /*clk = 100000000*/
+	{ "vi",		"pll_c",	0,		false }, /*clk = 100000000*/
+	{ "2d",		"pll_c",	0,		false }, /*clk = 300000000*/
+	{ "3d",		"pll_c",	300000000,	false }, /*clk = 300000000, true*/
+	{ "csite",      NULL,           0,              true },
+	{ "pll_u",	NULL,		480000000,	true },
+	{ "sdmmc1",	"pll_p",	48000000,	false},
+	{ "sdmmc2",	"pll_p",	48000000,	false}, /*clk = 24000000*/
+	{ "sdmmc3",	"pll_p",	48000000,	false},
+	{ "sdmmc4",	"pll_p",	48000000,	true},
+	{ "sbc1.sclk",	NULL,		40000000,	false}, /*clk = 80000000*/
+	{ "sbc2.sclk",	NULL,		40000000,	false}, /*clk = 80000000*/
+	{ "sbc3.sclk",	NULL,		40000000,	false}, /*clk = 80000000*/
+	{ "sbc4.sclk",	NULL,		40000000,	false}, /*clk = 80000000*/
+#else
 	{ "clk_m",	NULL,		0,		true },
 	{ "emc",	NULL,		0,		true },
 	{ "cpu",	NULL,		0,		true },
@@ -219,6 +253,7 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "cbus",	"pll_c",	416000000,	false },
 	{ "pll_c_out1",	"pll_c",	208000000,	false },
 	{ "mselect",	"pll_p",	102000000,	true },
+#endif
 #endif
 	{ NULL,		NULL,		0,		0},
 };
