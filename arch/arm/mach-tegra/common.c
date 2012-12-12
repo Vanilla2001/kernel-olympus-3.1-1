@@ -154,7 +154,7 @@ static int max_cpu_current;
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 /*#ifdef CONFIG_MACH_OLYMPUS*/
-	{ "clk_m",	NULL,		26000000,	true }
+	{ "clk_m",	NULL,		26000000,	true },
 /*	{ "clk_m",	NULL,		0,		true }, */
 	{ "emc",	"pll_m",	600000000,	true },
 /*	{ "emc",	NULL,		0,		true }, */
@@ -163,7 +163,7 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "cpu",	"cclk",		1000000000,	true },
 /*	{ "cpu",	NULL,		0,		true }, */
 	{ "kfuse",	NULL,		26000000,	true },
-	{ "fuse",	NULL,		26000000,	true }
+	{ "fuse",	NULL,		26000000,	true },
 	{ "pll_c",	NULL,		600000000,	true },
 	{ "pll_c_out1",	"pll_c",	80000000,	true },
 	{ "sclk",	"pll_c_out1",	80000000,	true },
