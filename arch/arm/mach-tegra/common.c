@@ -154,21 +154,32 @@ static int max_cpu_current;
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 /*#ifdef CONFIG_MACH_OLYMPUS*/
-	{ "clk_m",	NULL,		0,		true }, /* clk = 26000000*/
-	{ "emc",	NULL,		0,		true }, /* clk = 600000000 */
-	{ "cpu",	NULL,		0,		true }, /* clk = 1000000000 */
-	{ "kfuse",	NULL,		0,		true }, /* clk = 26000000 */
-	{ "fuse",	NULL,		0,		true }, /* clk = 26000000 */
-	{ "sclk",	NULL,		0,		true }, /* clk = 80000000 */
+	{ "clk_m",	NULL,		26000000,	true }
+/*	{ "clk_m",	NULL,		0,		true }, */
+	{ "emc",	"pll_m",	600000000,	true },
+/*	{ "emc",	NULL,		0,		true }, */
+	{ "pll_x",	NULL,		1000000000,	true },	
+	{ "cclk",	"pll_x",	1000000000,	true },
+	{ "cpu",	"cclk",		1000000000,	true },
+/*	{ "cpu",	NULL,		0,		true }, */
+	{ "kfuse",	NULL,		26000000,	true },
+	{ "fuse",	NULL,		26000000,	true }
+	{ "pll_c",	NULL,		600000000,	true },
+	{ "pll_c_out1",	"pll_c",	80000000,	true },
+	{ "sclk",	"pll_c_out1",	80000000,	true },
+/*	{ "sclk",	NULL,		0,		true }, */
 	{ "pll_p",	NULL,		216000000,	true },
 	{ "pll_p_out1",	"pll_p",	28800000,	true },
 	{ "pll_p_out2",	"pll_p",	48000000,	true },
 	{ "pll_p_out3",	"pll_p",	72000000,	true },
 	{ "pll_p_out4",	"pll_p",	108000000,	true },
-	{ "pll_m",	"clk_m",	0,		true }, /*clk = 600000000*/
+	{ "pll_m",	"clk_m",	600000000,	true },
+/*	{ "pll_m",	"clk_m",	0,		true }, */
 	{ "pll_m_out1",	"pll_m",	120000000,	true },
-	{ "sclk",	"pll_c_out1",	40000000,	true }, /*clk = 80000000*/
-	{ "hclk",	"sclk",		40000000,	true }, /*clk = 80000000*/
+	{ "sclk",	"pll_c_out1",	80000000,	true },
+/*	{ "sclk",	"pll_c_out1",	40000000,	true }, */
+	{ "hclk",	"pll_c_out1",	80000000,	true },
+/*	{ "hclk",	"sclk",		40000000,	true }, */
 	{ "pclk",	"hclk",		40000000,	true },
 /*#else*/
 #if 0
