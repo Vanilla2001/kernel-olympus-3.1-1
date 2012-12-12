@@ -153,7 +153,7 @@ static int max_cpu_current;
  */
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	/* name		parent		rate		enabled */
-#ifdef CONFIG_MACH_OLYMPUS
+/*#ifdef CONFIG_MACH_OLYMPUS*/
 	{ "clk_m",	NULL,		0,		true }, /* clk = 26000000*/
 	{ "emc",	NULL,		0,		true }, /* clk = 600000000 */
 	{ "cpu",	NULL,		0,		true }, /* clk = 1000000000 */
@@ -170,6 +170,8 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "sclk",	"pll_c_out1",	40000000,	true }, /*clk = 80000000*/
 	{ "hclk",	"sclk",		40000000,	true }, /*clk = 80000000*/
 	{ "pclk",	"hclk",		40000000,	true },
+/*#else*/
+#if 0
 	{ "mpe",	"pll_c",	0,		false }, /*clk = 300000000*/
 	{ "epp",	"pll_c",	0,		false }, /*clk = 300000000*/
 	{ "vi_sensor",	"pll_c",	0,		false }, /*clk = 100000000*/
@@ -186,7 +188,9 @@ static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	{ "sbc2.sclk",	NULL,		40000000,	false}, /*clk = 80000000*/
 	{ "sbc3.sclk",	NULL,		40000000,	false}, /*clk = 80000000*/
 	{ "sbc4.sclk",	NULL,		40000000,	false}, /*clk = 80000000*/
-#else
+#endif
+
+#if 0
 	{ "clk_m",	NULL,		0,		true },
 	{ "emc",	NULL,		0,		true },
 	{ "cpu",	NULL,		0,		true },
