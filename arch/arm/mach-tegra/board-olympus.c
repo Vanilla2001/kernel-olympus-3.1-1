@@ -27,6 +27,8 @@
 #include <linux/spi/cpcap.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
+#include <linux/memblock.h>
+#include <linux/console.h>
 
 #include <asm/bootinfo.h>
 #include <asm/mach-types.h>
@@ -280,6 +282,18 @@ static char oly_unused_pins_p1[] = {
 extern void __init tegra_setup_nvodm(bool standard_i2c, bool standard_spi);
 extern void __init tegra_register_socdev(void);
 
+static struct resource ram_console_resource[] = {
+	{
+		.flags = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device ram_console_device = {
+	.name = "ram_console",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(ram_console_resource),
+	.resource = ram_console_resource,
+};
 
 /* 
  * List of i2c devices
@@ -563,11 +577,43 @@ static void __init mot_fixup(struct machine_desc *desc, struct tag *tags,
 	}
 }
 
+int __init tegra_olympus_protected_aperture_init(void)
+{
+	tegra_protected_aperture_init(tegra_grhost_aperture);
+	return 0;
+}
+late_initcall(tegra_olympus_protected_aperture_init);
+
+void __init tegra_olympus_reserve(void)
+{
+	u64 ram_console_start;
+	int ret;
+
+	if (memblock_reserve(0x0, 4096) < 0)
+		pr_warn("Cannot reserve first 4K of memory for safety\n");
+
+	tegra_reserve(SZ_256M, SZ_8M, SZ_16M);
+
+	/*!!!!!!!!!!!!! Reserve memory for the ram console. !!!!!!!!!!!!!!!!!!!!!!*/
+	ram_console_start = memblock_end_of_DRAM() - SZ_1M;
+
+	ret = memblock_remove(ram_console_start, SZ_1M);
+	if (ret < 0) {
+		pr_err("Failed to reserve 0x%x bytes for ram_console at "
+			"0x%llx, err = %d.\n",
+			SZ_1M, ram_console_start, ret);
+	} else {
+		ram_console_resource[0].start = ram_console_start;
+		ram_console_resource[0].end = ram_console_start + SZ_1M - 1;
+	}
+}
+
 MACHINE_START(OLYMPUS, "Olympus")
 
     .boot_params  = 0x00000100,
     .fixup        = mot_fixup,
     .map_io       = tegra_map_common_io,
+    .reserve	  = tegra_olympus_reserve,
     .init_early	  = tegra_init_early,
     .init_irq     = tegra_init_irq,
     .init_machine = tegra_mot_init,

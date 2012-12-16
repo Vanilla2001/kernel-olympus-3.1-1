@@ -693,7 +693,7 @@ void __init tegra_init_max_rate(struct clk *c, unsigned long max_rate)
 
 void __init tegra_init_clock(void)
 {
-#if 0
+
 	int ret;
 	struct clk *cpu;
 	struct clk *twd;
@@ -712,7 +712,6 @@ void __init tegra_init_clock(void)
 		pr_err("Failed to set twd clock rate: %d\n", ret);
 	else
 		pr_debug("TWD clock rate: %ld\n", clk_get_rate(twd));
-#endif
 
 }
 

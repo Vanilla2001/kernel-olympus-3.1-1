@@ -432,7 +432,6 @@ static void __init tegra_init_ahb_gizmo_settings(void)
 void __init tegra_init_early(void)
 {
 
-	tegra_ram_console_debug_init();
 #ifndef CONFIG_SMP
 	/* For SMP system, initializing the reset handler here is too
 	   late. For non-SMP systems, the function that calls the reset
@@ -444,14 +443,14 @@ void __init tegra_init_early(void)
 	tegra_bootloader_fb_start = 0x18012000;*/
 
 	tegra_init_fuse();
-/*	tegra_gpio_resume_init();
+	tegra_gpio_resume_init();
 	tegra_init_clock();
 	tegra_init_pinmux();
 	tegra_clk_init_from_table(common_clk_init_table);
 	tegra_init_power();
 	tegra_init_cache(true);
 	tegra_init_ahb_gizmo_settings();
-	tegra_init_debug_uart_rate();*/
+/*	tegra_init_debug_uart_rate();*/
 }
 
 static int __init tegra_lp0_vec_arg(char *options)
