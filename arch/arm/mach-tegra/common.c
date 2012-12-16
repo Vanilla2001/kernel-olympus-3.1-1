@@ -446,12 +446,12 @@ void __init tegra_init_early(void)
 	tegra_init_fuse();
 	tegra_gpio_resume_init();
 	tegra_init_clock();
-	tegra_init_pinmux();
+/*	tegra_init_pinmux();
 	tegra_clk_init_from_table(common_clk_init_table);
 	tegra_init_power();
 	tegra_init_cache(true);
 	tegra_init_ahb_gizmo_settings();
-	tegra_init_debug_uart_rate();
+	tegra_init_debug_uart_rate();*/
 }
 
 static int __init tegra_lp0_vec_arg(char *options)

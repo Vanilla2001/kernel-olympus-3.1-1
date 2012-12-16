@@ -697,20 +697,20 @@ void __init tegra_init_clock(void)
 	struct clk *cpu;
 	struct clk *twd;
 
-/*	tegra_soc_init_clocks();
-	tegra_soc_init_dvfs();*/
+	tegra_soc_init_clocks();
+	tegra_soc_init_dvfs();
 
 	/* The twd clock is a detached child of the CPU complex clock.
 	   Force an update of the twd clock after DVFS as updated the
 	   CPU clock rate. */
 
-/*	cpu = tegra_get_clock_by_name("cpu");
+	cpu = tegra_get_clock_by_name("cpu");
 	twd = tegra_get_clock_by_name("twd");
 	ret = clk_set_rate(twd, clk_get_rate(cpu));
 	if (ret)
 		pr_err("Failed to set twd clock rate: %d\n", ret);
 	else
-		pr_debug("TWD clock rate: %ld\n", clk_get_rate(twd));*/
+		pr_debug("TWD clock rate: %ld\n", clk_get_rate(twd));
 
 }
 
