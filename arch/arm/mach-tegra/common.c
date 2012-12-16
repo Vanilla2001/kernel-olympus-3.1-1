@@ -445,8 +445,8 @@ void __init tegra_init_early(void)
 
 	tegra_init_fuse();
 	tegra_gpio_resume_init();
-	tegra_init_clock();
-/*	tegra_init_pinmux();
+/*	tegra_init_clock();
+	tegra_init_pinmux();
 	tegra_clk_init_from_table(common_clk_init_table);
 	tegra_init_power();
 	tegra_init_cache(true);
