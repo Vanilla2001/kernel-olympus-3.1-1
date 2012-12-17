@@ -599,7 +599,7 @@ void __init tegra_olympus_reserve(void)
 	if (memblock_reserve(0x0, 4096) < 0)
 		pr_warn("Cannot reserve first 4K of memory for safety\n");
 
-	tegra_reserve(SZ_256M, SZ_8M, SZ_16M);
+/*	tegra_reserve(SZ_256M, SZ_8M, SZ_16M);
 
 	/*!!!!!!!!!!!!! Reserve memory for the ram console. !!!!!!!!!!!!!!!!!!!!!!*/
 	ram_console_start = memblock_end_of_DRAM() - SZ_1M;
@@ -612,7 +612,7 @@ void __init tegra_olympus_reserve(void)
 	} else {
 		ram_console_resource[0].start = ram_console_start;
 		ram_console_resource[0].end = ram_console_start + SZ_1M - 1;
-	}
+	}*/
 }
 
 MACHINE_START(OLYMPUS, "Olympus")
@@ -620,7 +620,7 @@ MACHINE_START(OLYMPUS, "Olympus")
     .boot_params  = 0x00000100,
     .fixup        = mot_fixup,
     .map_io       = tegra_map_common_io,
-/*    .reserve	  = tegra_olympus_reserve,*/
+    .reserve	  = tegra_olympus_reserve,
     .init_early	  = tegra_init_early,
     .init_irq     = tegra_init_irq,
     .init_machine = tegra_mot_init,
