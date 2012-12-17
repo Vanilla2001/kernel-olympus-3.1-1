@@ -527,7 +527,7 @@ static void __init tegra_mot_init(void)
 		}
 	}
 
-	tegra_release_bootloader_fb();
+/*	tegra_release_bootloader_fb();*/
 }
 
 static void __init mot_fixup(struct machine_desc *desc, struct tag *tags,
@@ -589,7 +589,7 @@ int __init tegra_olympus_protected_aperture_init(void)
 	tegra_protected_aperture_init(tegra_grhost_aperture);
 	return 0;
 }
-late_initcall(tegra_olympus_protected_aperture_init);
+/*late_initcall(tegra_olympus_protected_aperture_init);*/
 
 void __init tegra_olympus_reserve(void)
 {
