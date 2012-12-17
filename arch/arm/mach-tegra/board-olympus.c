@@ -620,7 +620,7 @@ MACHINE_START(OLYMPUS, "Olympus")
     .boot_params  = 0x00000100,
     .fixup        = mot_fixup,
     .map_io       = tegra_map_common_io,
-    .reserve	  = tegra_olympus_reserve,
+/*    .reserve	  = tegra_olympus_reserve,*/
     .init_early	  = tegra_init_early,
     .init_irq     = tegra_init_irq,
     .init_machine = tegra_mot_init,
