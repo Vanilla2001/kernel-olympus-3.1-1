@@ -445,10 +445,11 @@ static void __init tegra_mot_init(void)
 #ifdef CONFIG_APANIC_RAM
 	apanic_ram_init();
 #endif
-#endif
+
 
 #ifdef CONFIG_APANIC_MMC
 	apanic_mmc_init();
+#endif
 #endif
 
 	mot_setup_power();
@@ -526,6 +527,7 @@ static void __init tegra_mot_init(void)
 		}
 	}
 
+	tegra_release_bootloader_fb();
 }
 
 static void __init mot_fixup(struct machine_desc *desc, struct tag *tags,
