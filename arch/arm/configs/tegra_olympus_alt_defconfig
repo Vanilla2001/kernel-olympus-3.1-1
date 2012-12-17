@@ -64,7 +64,8 @@ CONFIG_AEABI=y
 CONFIG_HIGHMEM=y
 CONFIG_ZBOOT_ROM_TEXT=0x0
 CONFIG_ZBOOT_ROM_BSS=0x0
-CONFIG_CMDLINE="mem=448M@0M console=ttyS0,115200n8 earlyprintk init=/bin/ash"
+#CONFIG_CMDLINE="mem=448M@0M console=ttyS0,115200n8 earlyprintk init=/bin/ash"
+CONFIG_CMDLINE="mem=511M@0M secmem=1M@511M mem=512M@512M vmalloc=256M tegra_fbmem=800K@0x18012000 video=tegrafb console=ram usbcore.old_scheme_first=1 lp0_vec=8192@0x1819E000 earlyprintk init=/bin/ash"
 
 
 #
