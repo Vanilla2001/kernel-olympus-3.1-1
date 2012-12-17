@@ -426,6 +426,9 @@ static int config_unused_pins(char *pins, int num)
         return ret;
 }
 
+static struct platform_device *olympus_devices[] __initdata = {
+	&ram_console_device,
+};
 
 static void __init tegra_mot_init(void)
 {
@@ -453,6 +456,8 @@ static void __init tegra_mot_init(void)
 	mot_setup_touch(&tegra_i2c_bus0_board_info[TOUCHSCREEN_DEV]);*/
 /*	mot_sec_init();
 	mot_tcmd_init();*/
+
+	platform_add_devices(olympus_devices, ARRAY_SIZE(olympus_devices)); // ram console
 
 	mot_setup_gadget();
 

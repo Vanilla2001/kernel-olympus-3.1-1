@@ -439,8 +439,8 @@ void __init tegra_init_early(void)
 	tegra_cpu_reset_handler_init();
 #endif
 	/*tegra_fbmem = 800@18012000*/
-/*	tegra_bootloader_fb_size = 819200;
-	tegra_bootloader_fb_start = 0x18012000;*/
+	tegra_bootloader_fb_size = 819200;
+	tegra_bootloader_fb_start = 0x18012000;
 
 	tegra_init_fuse();
 	tegra_gpio_resume_init();
