@@ -625,8 +625,8 @@ MACHINE_START(OLYMPUS, "Olympus")
     .reserve	  = tegra_olympus_reserve,
     .init_early	  = tegra_init_early,
     .init_irq     = tegra_init_irq,
-    .init_machine = tegra_mot_init,
     .timer        = &tegra_timer,
+    .init_machine = tegra_mot_init,
 
 MACHINE_END
 
