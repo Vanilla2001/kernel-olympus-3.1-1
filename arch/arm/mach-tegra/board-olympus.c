@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/pda_power.h>
 #include <linux/io.h>
@@ -341,13 +342,13 @@ static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
 	{ "uartd",	"pll_p",	216000000,	true},
 	{ "emc",	"pll_m",	600000000,	true},
 	{ "pll_m",	NULL,		600000000,	true},
-	{ "mpe",	"pll_m",	250000000,	false},
-	{ "pll_a",	NULL,		56448000,	false},
-	{ "pll_a_out0",	NULL,		11289600,	false},
+	{ "mpe",	"pll_c",	300000000,	false},
+	{ "pll_a",	"pll_p_out1",	56448000,	false},
+	{ "pll_a_out0",	"pll_a",	11289600,	false},
 	{ "i2s1",	"pll_a_out0",	2822400,	false},
 	{ "i2s2",	"clk_m",	26000000,	false},
 	{ "sdmmc4",	"pll_p",	48000000,	true},
-	{ "sdmmc2",	"pll_p",	24000000,	false},
+	{ "sdmmc2",	"pll_p",	48000000,	false},
 	{ "spdif_out",	"pll_a_out0",	11289600,	false},
 	{ NULL,		NULL,		0,		0},
 };
@@ -432,6 +433,7 @@ static struct platform_device *olympus_devices[] __initdata = {
 
 static void __init tegra_mot_init(void)
 {
+	msleep(20000);
 
 	tegra_clk_init_from_table(olympus_clk_init_table);
 
