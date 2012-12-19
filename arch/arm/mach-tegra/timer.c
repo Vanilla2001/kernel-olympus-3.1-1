@@ -91,7 +91,12 @@ static void tegra_timer_set_mode(enum clock_event_mode mode,
 		break;
 	}
 }
-
+/* ICS added start*/
+static cycle_t tegra_clocksource_read(struct clocksource *cs)
+{
+	return timer_readl(TIMERUS_CNTR_1US);
+}
+/* ICS added end*/
 static struct clock_event_device tegra_clockevent = {
 	.name		= "timer0",
 	.rating		= 300,
@@ -99,7 +104,15 @@ static struct clock_event_device tegra_clockevent = {
 	.set_next_event	= tegra_timer_set_next_event,
 	.set_mode	= tegra_timer_set_mode,
 };
-
+/* ICS added start*/
+static struct clocksource tegra_clocksource = {
+	.name	= "timer_us",
+	.rating	= 300,
+	.read	= tegra_clocksource_read,
+	.mask	= CLOCKSOURCE_MASK(32),
+	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+/* ICS added end*/
 static DEFINE_CLOCK_DATA(cd);
 
 /*
@@ -242,6 +255,7 @@ static void __init tegra_init_timer(void)
 {
 
 	struct clk *clk;
+	unsigned long rate = tegra_clk_measure_input_freq();
 	int ret;
 
 	clk = clk_get_sys("timer", NULL);
@@ -259,21 +273,50 @@ static void __init tegra_init_timer(void)
 #ifdef CONFIG_HAVE_ARM_TWD
 	twd_base = IO_ADDRESS(TEGRA_ARM_PERIF_BASE + 0x600);
 #endif
+	
+	/* ICS added start*/
+	switch (rate) {
+	case 12000000:
+		timer_writel(0x000b, TIMERUS_USEC_CFG);
+		break;
+	case 13000000:
+		timer_writel(0x000c, TIMERUS_USEC_CFG);
+		break;
+	case 19200000:
+		timer_writel(0x045f, TIMERUS_USEC_CFG);
+		break;
+	case 26000000:
+		timer_writel(0x0019, TIMERUS_USEC_CFG);
+		break;
+	default:
+		WARN(1, "Unknown clock rate");
+	}
+	/* ICS added end*/
 
+#if 0
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	tegra2_init_timer(&system_timer, &tegra_timer_irq.irq);
 #else
 	tegra3_init_timer(&system_timer, &tegra_timer_irq.irq);
 #endif
-#if 0
+#endif
+
 	init_fixed_sched_clock(&cd, tegra_update_sched_clock, 32,
 			       1000000, SC_MULT, SC_SHIFT);
-
+#if 0
 	if (clocksource_mmio_init(timer_reg_base + TIMERUS_CNTR_1US,
 		"timer_us", 1000000, 300, 32, clocksource_mmio_readl_up)) {
 		printk(KERN_ERR "Failed to register clocksource\n");
 		BUG();
 	}
+#endif
+
+	/* ICS added start*/
+	if (clocksource_register_hz(&tegra_clocksource, 1000000)) {
+		printk(KERN_ERR "Failed to register clocksource\n");
+		BUG();
+	}
+	/* ICS added end*/
 
 	ret = setup_irq(tegra_timer_irq.irq, &tegra_timer_irq);
 	if (ret) {
@@ -291,7 +334,7 @@ static void __init tegra_init_timer(void)
 	clockevents_register_device(&tegra_clockevent);
 
 	register_syscore_ops(&tegra_timer_syscore_ops);
-#endif
+
 }
 
 struct sys_timer tegra_timer = {
