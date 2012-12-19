@@ -240,6 +240,7 @@ void tegra_twd_resume(struct tegra_twd_context *context)
 
 static void __init tegra_init_timer(void)
 {
+
 	struct clk *clk;
 	int ret;
 
@@ -264,7 +265,7 @@ static void __init tegra_init_timer(void)
 #else
 	tegra3_init_timer(&system_timer, &tegra_timer_irq.irq);
 #endif
-
+#if 0
 	init_fixed_sched_clock(&cd, tegra_update_sched_clock, 32,
 			       1000000, SC_MULT, SC_SHIFT);
 
@@ -290,6 +291,7 @@ static void __init tegra_init_timer(void)
 	clockevents_register_device(&tegra_clockevent);
 
 	register_syscore_ops(&tegra_timer_syscore_ops);
+#endif
 }
 
 struct sys_timer tegra_timer = {
