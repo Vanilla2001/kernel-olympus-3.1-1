@@ -229,7 +229,7 @@ obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-pinmux.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-panel.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-lights.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-misc.o
-#obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-keypad.o
+obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-keypad.o
 #obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-wifi.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-sensors.o
 #obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-wlan_nvs.o
@@ -240,3 +240,5 @@ obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-usb.o
 #obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-gps.o
 #obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-bootinfo.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-memory.o
+
+

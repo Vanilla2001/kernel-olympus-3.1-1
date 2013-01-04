@@ -20,7 +20,6 @@
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
-/*#include <mach/nvrm_linux.h>*/
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/fixed.h>
@@ -28,9 +27,6 @@
 #include <linux/usb/android_composite.h>
 #include <linux/gpio.h>
 #include <linux/cpcap-accy.h>
-/*#include <nvrm_module.h>*/
-/*#include <nvrm_boot.h>*/
-/*#include <nvodm_services.h>*/
 #include <linux/mdm_ctrl.h>
 
 #include "gpio-names.h"
