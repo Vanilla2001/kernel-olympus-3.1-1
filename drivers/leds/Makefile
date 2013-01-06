@@ -45,6 +45,7 @@ obj-$(CONFIG_LEDS_NETXBIG)		+= leds-netxbig.o
 obj-$(CONFIG_LEDS_ASIC3)		+= leds-asic3.o
 obj-$(CONFIG_LEDS_CPCAP_BUTTON)		+= leds-cpcap-button.o
 obj-$(CONFIG_LEDS_CPCAP_RGB)		+= leds-cpcap-rgb.o
+obj-$(CONFIG_LEDS_CPCAP)		+= leds-ld-cpcap.o
 obj-$(CONFIG_LEDS_LM3530)		+= leds-lm3530.o
 obj-$(CONFIG_LEDS_LM3532)		+= leds-lm3532.o
 

@@ -48,6 +48,7 @@
 
 #include "clock.h"
 #include "gpio-names.h"
+#include "pm.h"
 
 #include <linux/qtouch_obp_ts.h>
 #include <linux/isl29030.h>
@@ -64,6 +65,7 @@
 #define PWRUP_INVALID               0xFFFFFFFF
 #define PWRUP_BAREBOARD             0x00100000 /* Bit 20 */
 
+#if 0
 static char oly_unused_pins_p3[] = {
         TEGRA_GPIO_PO1,
         TEGRA_GPIO_PO2,
@@ -279,22 +281,8 @@ static char oly_unused_pins_p1[] = {
         TEGRA_GPIO_PV7,
         TEGRA_GPIO_PD1,
 };
-
-extern void __init tegra_setup_nvodm(bool standard_i2c, bool standard_spi);
+#endif
 extern void __init tegra_register_socdev(void);
-
-static struct resource ram_console_resource[] = {
-	{
-		.flags = IORESOURCE_MEM,
-	}
-};
-
-static struct platform_device ram_console_device = {
-	.name = "ram_console",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(ram_console_resource),
-	.resource = ram_console_resource,
-};
 
 /* 
  * List of i2c devices
@@ -335,21 +323,69 @@ static struct i2c_board_info tegra_i2c_bus3_board_info[] = {
 	},
 };
 
+static struct tegra_suspend_platform_data olympus_suspend = {
+	.cpu_timer = 1500,
+	.cpu_off_timer = 1,
+	.core_timer = 0x7e7e,
+	.core_off_timer = 0xf,
+        .corereq_high = true,
+	.sysclkreq_high = true,
+	.suspend_mode = TEGRA_SUSPEND_LP0,
+};
+
 static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
-	/* name		parent		rate		enabled */        
+	/* name		parent		rate		enabled */  
+	{ "twd",        NULL,           62500000,	true}, 
+	{ "usb3",	"clk_m",	26000000,	false},
+	{ "usbd",	"clk_m",	26000000,	true},
+	{ "dvc",	"clk_m",	2888888,	true},
+	{ "i2c3",	"clk_m",	2888888,	true},
+	{ "i2c2",	"clk_m",	787878,		true},
+	{ "i2c1",	"clk_m",	2888888,	true},
+	{ "owr",	"clk_m",	1000000,	false},
+	{ "kfuse",	"clk_m",	26000000,	true},
+	{ "fuse_burn",	"clk_m",	26000000,	false},
+	{ "fuse",	"clk_m",	26000000,	true},
+	{ "i2s2",	"clk_m",	26000000,	false},
+	{ "timer",	"clk_m",	26000000,	true},
+/*	{ "cdev1",	"clk_m",	26000000,	true},*/
+	{ "pll_u",	"clk_m",	480000000,	true},
+	{ "pll_d",	"clk_m",	459000000,	true},
+	{ "pll_d_out0",	"pll_d",	229500000,	true},
+	{ "dsia",	"pll_d_out0",	229500000,	true},	
+	{ "disp1",	"pll_d_out0",	229500000,	true},
+	{ "pll_p",	"clk_m",	216000000,	true},
+	{ "host1x",	"pll_p",	108000000,	true},
 	{ "uartb",	"pll_p",	216000000,	true},
-	{ "uartc",	"pll_m",	600000000,	true},
 	{ "uartd",	"pll_p",	216000000,	true},
-	{ "emc",	"pll_m",	600000000,	true},
-	{ "pll_m",	NULL,		600000000,	true},
-	{ "mpe",	"pll_c",	300000000,	false},
+	{ "csite",	"pll_p",	144000000,	true},
+	{ "sdmmc4",	"pll_p",	48000000,	true},
+	{ "sdmmc3",	"pll_p",	48000000,	false},
+	{ "sdmmc2",	"pll_p",	24000000,	false},
+	{ "sdmmc1",	"pll_p",	48000000,	false},
+	{ "pll_p_out3",	"pll_p",	72000000,	true},
+	{ "pll_p_out1",	"pll_p",	28800000,	true},
 	{ "pll_a",	"pll_p_out1",	56448000,	false},
 	{ "pll_a_out0",	"pll_a",	11289600,	false},
-	{ "i2s1",	"pll_a_out0",	2822400,	false},
-	{ "i2s2",	"clk_m",	26000000,	false},
-	{ "sdmmc4",	"pll_p",	48000000,	true},
-	{ "sdmmc2",	"pll_p",	48000000,	false},
 	{ "spdif_out",	"pll_a_out0",	11289600,	false},
+	{ "pll_c",	"clk_m",	600000000,	true},
+	{ "mpe",	"pll_c",	300000000,	false},
+	{ "epp",	"pll_c",	300000000,	false},
+	{ "vi",		"pll_c",	100000000,	false},  
+	{ "2d",		"pll_c",	300000000,	false},
+	{ "3d",		"pll_c",	300000000,	true},
+	{ "sbc2",	"pll_c",	31578947,	true},
+	{ "pll_c_out1",	"pll_c",	80000000,	true},
+	{ "sclk",	"pll_c_out1",	80000000,	true},
+	{ "i2s1",	"pll_a_out0",	2822400,	false},
+	{ "pll_m",	"clk_m",	600000000,	true},
+	{ "emc",	"pll_m",	600000000,	true},
+	{ "uartc",	"pll_m",	600000000,	true},
+/*	{ "sbc",	"pll_m",	100000000,	true},*/
+	{ "emc",	"pll_m",	100000000,	true},
+	{ "pwm",	"clk_32k",	32768,		false},
+	{ "kbc",	"clk_32k",	32768,		true},
+	{ "rtc",	"clk_32k",	32768,		true},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -403,7 +439,7 @@ fail:
 #else
 static inline void tegra_setup_bluesleep(void) { }
 #endif
-
+#if 0
 static int config_unused_pins(char *pins, int num)
 {
         int i, ret = 0;
@@ -426,22 +462,61 @@ static int config_unused_pins(char *pins, int num)
 
         return ret;
 }
-
-static struct platform_device *olympus_devices[] __initdata = {
-	&ram_console_device,
-};
+#endif
+void __init config_gpios(void)
+{
+/*	tegra_gpio_enable(TEGRA_GPIO_PF2);
+	gpio_request(TEGRA_GPIO_PF2, "spi_gpio_srdy");
+	gpio_direction_output(TEGRA_GPIO_PF2, 1);
+	tegra_gpio_enable(TEGRA_GPIO_PF3);
+	gpio_request(TEGRA_GPIO_PF3, "sdio_en");
+	gpio_direction_output(TEGRA_GPIO_PF3, 1);
+	tegra_gpio_enable(TEGRA_GPIO_PF7);
+	gpio_request(TEGRA_GPIO_PF3, "sdio_en");
+	gpio_direction_output(TEGRA_GPIO_PF3, 1);
+	tegra_gpio_enable(TEGRA_GPIO_PI5);
+	gpio_request(TEGRA_GPIO_PI5, "sdhci_cd");
+	gpio_direction_input(TEGRA_GPIO_PI5);
+	tegra_gpio_enable(TEGRA_GPIO_PL1);
+	gpio_request(TEGRA_GPIO_PL1, "spi_gpio_mrdy");
+	gpio_direction_input(TEGRA_GPIO_PL1);
+	tegra_gpio_enable(TEGRA_GPIO_PM2);
+	gpio_request(TEGRA_GPIO_PM2, "hs_detect_enable");
+	gpio_direction_output(TEGRA_GPIO_PM2,1);
+	tegra_gpio_enable(TEGRA_GPIO_PT2);
+	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
+	gpio_direction_output(TEGRA_GPIO_PT2,0);*/
+}
 
 static void __init tegra_mot_init(void)
 {
-	msleep(20000);
+	tegra_init_suspend(&olympus_suspend);
 
 	tegra_clk_init_from_table(olympus_clk_init_table);
 
+	olympus_emc_init();
+
+	tegra_gpio_enable(TEGRA_GPIO_PV6);
+	gpio_request(TEGRA_GPIO_PV6, "usb_data_en");
+	gpio_direction_output(TEGRA_GPIO_PV6, 1);
+
+	/* Olympus has a USB switch that disconnects the usb port from the AP20
+	   unless a factory cable is used, the factory jumper is set, or the
+	   usb_data_en gpio is set.
+	 */
+/*	tegra_gpio_enable(TEGRA_GPIO_PT2);
+	gpio_request(TEGRA_GPIO_PV6, "usb_host_pwr_en");
+	gpio_direction_output(TEGRA_GPIO_PT2, 1);*/
+
 	olympus_pinmux_init();
 
-/*	tegra_common_init();*/
-	tegra_setup_nvodm(true, true);
+	olympus_devices_init();
+
+	tegra_ram_console_debug_init();
+
 	tegra_register_socdev();
+
+	config_gpios();
 
 #if 0
 #ifdef CONFIG_APANIC_RAM
@@ -454,15 +529,17 @@ static void __init tegra_mot_init(void)
 #endif
 #endif
 
-	mot_setup_power();
-/*	mot_setup_lights(&tegra_i2c_bus0_board_info[BACKLIGHT_DEV]);
-	mot_setup_touch(&tegra_i2c_bus0_board_info[TOUCHSCREEN_DEV]);*/
+	olympus_power_init();
+
+	mot_setup_lights(&tegra_i2c_bus0_board_info[BACKLIGHT_DEV]);
+	mot_setup_touch(&tegra_i2c_bus0_board_info[TOUCHSCREEN_DEV]);
+
 /*	mot_sec_init();
 	mot_tcmd_init();*/
 
-	platform_add_devices(olympus_devices, ARRAY_SIZE(olympus_devices)); // ram console
+	olympus_panel_init();
 
-	mot_setup_gadget();
+/*	mot_setup_gadget();*/
 
 /*	tegra_uart_platform[UART_IPC_OLYMPUS].uart_ipc = 1;
 	tegra_uart_platform[UART_IPC_OLYMPUS].uart_wake_host = TEGRA_GPIO_PA0;
@@ -476,7 +553,7 @@ static void __init tegra_mot_init(void)
 #endif
 	}
 
-/*	mot_modem_init();*/
+	mot_modem_init();
 
 	(void) platform_driver_register(&cpcap_usb_connected_driver);
 
@@ -498,7 +575,7 @@ static void __init tegra_mot_init(void)
 
 
 	pm_power_off = mot_system_power_off;
-	tegra_setup_bluesleep();
+	if (0==1) tegra_setup_bluesleep();
 
 	/* Configure SPDIF_OUT as GPIO by default, it can be later controlled
 	   as needed. When SPDIF_OUT is enabled and if HDMI is connected, it
@@ -509,7 +586,7 @@ static void __init tegra_mot_init(void)
 	gpio_request(TEGRA_GPIO_PD4, "spdif_enable");
 	gpio_direction_output(TEGRA_GPIO_PD4, 0);
 	gpio_export(TEGRA_GPIO_PD4, false);
-
+#if 0
 	if ((HWREV_TYPE_IS_PORTABLE(system_rev) || HWREV_TYPE_IS_FINAL(system_rev)))
 	{
 		if (HWREV_REV(system_rev) >= HWREV_REV_1 && HWREV_REV(system_rev) < HWREV_REV_2)
@@ -528,8 +605,8 @@ static void __init tegra_mot_init(void)
 			config_unused_pins(oly_unused_pins_p3, ARRAY_SIZE(oly_unused_pins_p3));
 		}
 	}
-
-/*	tegra_release_bootloader_fb();*/
+#endif
+	tegra_release_bootloader_fb();
 }
 
 static void __init mot_fixup(struct machine_desc *desc, struct tag *tags,
@@ -582,41 +659,25 @@ static void __init mot_fixup(struct machine_desc *desc, struct tag *tags,
 	 * Dump memory nodes
 	 */
 	for (i=0; i<mi->nr_banks; i++) {
-		printk("%s: bank[%d]=%lx@%lx\n", __func__, i, mi->bank[i].size, mi->bank[i].start);
+		printk("%s: bank[%d]=%lx@%lx\n", __func__, i, mi->bank[i].size, (long unsigned int)(mi->bank[i].start));
 	}
 }
 
-int __init tegra_olympus_protected_aperture_init(void)
+int __init olympus_protected_aperture_init(void)
 {
 	tegra_protected_aperture_init(tegra_grhost_aperture);
 	return 0;
 }
-/*late_initcall(tegra_olympus_protected_aperture_init);*/
+late_initcall(olympus_protected_aperture_init);
 
 void __init tegra_olympus_reserve(void)
 {
-	u64 ram_console_start;
-	int ret;
+	if (memblock_reserve(0x0, 4096) < 0)
+		pr_warn("Cannot reserve first 4K of memory for safety\n");
 
-	if (memblock_reserve(0x0, 4096) < 0) {
-			pr_warn("Cannot reserve first 4K of memory for safety\n");
-	}
+	tegra_reserve((SZ_128M | SZ_16M | SZ_8M), (SZ_1M | SZ_1M | SZ_1M), SZ_1M);
 
-	tegra_reserve(SZ_256M, SZ_8M, SZ_16M);
-
-	/*!!!!!!!!!!!!! Reserve memory for the ram console. !!!!!!!!!!!!!!!!!!!!!!*/
-	ram_console_start = memblock_end_of_DRAM() - SZ_1M;
-
-	ret = memblock_remove(ram_console_start, SZ_1M);
-	if (ret < 0) {
-		pr_err("Failed to reserve 0x%x bytes for ram_console at "
-				"0x%llx, err = %d.\n",
-				SZ_1M, ram_console_start, ret);
-	} else {
-		ram_console_resource[0].start = ram_console_start;
-		ram_console_resource[0].end = ram_console_start + SZ_1M - 1;
-	}
-
+	tegra_ram_console_debug_reserve(SZ_1M);
 }
 
 MACHINE_START(OLYMPUS, "Olympus")

@@ -693,7 +693,6 @@ void __init tegra_init_max_rate(struct clk *c, unsigned long max_rate)
 
 void __init tegra_init_clock(void)
 {
-
 	int ret;
 	struct clk *cpu;
 	struct clk *twd;
@@ -704,7 +703,6 @@ void __init tegra_init_clock(void)
 	/* The twd clock is a detached child of the CPU complex clock.
 	   Force an update of the twd clock after DVFS as updated the
 	   CPU clock rate. */
-
 	cpu = tegra_get_clock_by_name("cpu");
 	twd = tegra_get_clock_by_name("twd");
 	ret = clk_set_rate(twd, clk_get_rate(cpu));
@@ -712,7 +710,6 @@ void __init tegra_init_clock(void)
 		pr_err("Failed to set twd clock rate: %d\n", ret);
 	else
 		pr_debug("TWD clock rate: %ld\n", clk_get_rate(twd));
-
 }
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
@@ -1297,6 +1294,10 @@ static int clk_debugfs_register_one(struct clk *c)
 		goto err_out;
 
 	d = debugfs_create_u32("max", S_IRUGO, c->dent, (u32 *)&c->max_rate);
+	if (!d)
+		goto err_out;
+
+	d = debugfs_create_u32("min", S_IRUGO, c->dent, (u32 *)&c->min_rate);
 	if (!d)
 		goto err_out;
 

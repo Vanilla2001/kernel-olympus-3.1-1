@@ -29,16 +29,13 @@
 #include <mach/clk.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
+#include <mach/nvmap.h>
 #include <mach/dc.h>
 #include <mach/fb.h>
 
 #include "board.h"
 #include "board-olympus.h"
 #include "gpio-names.h"
-
-#define STINGRAY_LVDS_SHDN_B	TEGRA_GPIO_PB2
-#define STINGRAY_HDMI_5V_EN	TEGRA_GPIO_PC4
-#define STINGRAY_HDMI_HPD	TEGRA_GPIO_PN7
 
 /* Display Controller */
 static struct resource olympus_disp1_resources[] = {
@@ -165,7 +162,7 @@ static struct tegra_dc_out olympus_disp2_out = {
 	.flags = TEGRA_DC_OUT_HOTPLUG_HIGH,
 
 	.dcc_bus = 1,
-	.hotplug_gpio = STINGRAY_HDMI_HPD,
+	.hotplug_gpio = TEGRA_GPIO_PN7,
 
 	.align = TEGRA_DC_ALIGN_MSB,
 	.order = TEGRA_DC_ORDER_RED_BLUE,
@@ -195,6 +192,34 @@ static struct nvhost_device olympus_disp2_device = {
 	},
 };
 
+static struct nvmap_platform_carveout olympus_carveouts[] = {
+	[0] = NVMAP_HEAP_CARVEOUT_IRAM_INIT,
+	[1] = {
+		.name		= "generic-0",
+		.usage_mask	= NVMAP_HEAP_CARVEOUT_GENERIC,
+             .base       = 0,    /* Filled in by star_panel_init() */
+             .size       = 0,    /* Filled in by star_panel_init() */
+		.buddy_size	= SZ_32K,
+	},
+};
+
+static struct nvmap_platform_data olympus_nvmap_data = {
+	.carveouts	= olympus_carveouts,
+	.nr_carveouts	= ARRAY_SIZE(olympus_carveouts),
+};
+
+static struct platform_device olympus_nvmap_device = {
+	.name	= "tegra-nvmap",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &olympus_nvmap_data,
+	},
+};
+
+static struct platform_device *olympus_gfx_devices[] __initdata = {
+	&olympus_nvmap_device,
+};
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 /* put early_suspend/late_resume handlers here for the display in order
  * to keep the code out of the display driver, keeping it closer to upstream
@@ -217,6 +242,9 @@ static void olympus_panel_late_resume(struct early_suspend *h)
 int __init olympus_panel_init(void)
 {
 	struct resource *res;
+	int err;
+
+	printk(KERN_INFO "pICS_%s: Starting...",__func__);
 
 	olympus_hdmi_init();
 
@@ -227,22 +255,34 @@ int __init olympus_panel_init(void)
 	register_early_suspend(&olympus_panel_early_suspender);
 #endif
 
+	olympus_carveouts[1].base = tegra_carveout_start;
+	olympus_carveouts[1].size = tegra_carveout_size;
+
+	err = platform_add_devices(olympus_gfx_devices,
+				   ARRAY_SIZE(olympus_gfx_devices));
+
 	res = nvhost_get_resource_byname(&olympus_disp1_device,
 		IORESOURCE_MEM, "fbmem");
 	res->start = tegra_fb_start;
 	res->end = tegra_fb_start + tegra_fb_size - 1;
-/*
+
 	res = nvhost_get_resource_byname(&olympus_disp2_device,
 		IORESOURCE_MEM, "fbmem");
 	res->start = tegra_fb2_start;
 	res->end = tegra_fb2_start + tegra_fb2_size - 1;
-*/
+
 	tegra_move_framebuffer(tegra_fb_start, tegra_bootloader_fb_start,
 		min(tegra_fb_size, tegra_bootloader_fb_size));
 
-/*	nvhost_device_register(&olympus_disp1_device);
-	return  nvhost_device_register(&olympus_disp2_device);*/
-	return  nvhost_device_register(&olympus_disp1_device);
+	if (!err)
+		err = nvhost_device_register(&olympus_disp1_device);
+
+	if (!err)
+		err = nvhost_device_register(&olympus_disp2_device);
+
+	printk(KERN_INFO "pICS_%s: Ending...",__func__);
+
+	return err;
 
 }
 

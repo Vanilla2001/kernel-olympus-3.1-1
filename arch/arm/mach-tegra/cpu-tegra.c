@@ -55,17 +55,8 @@ static unsigned long target_cpu_speed[CONFIG_NR_CPUS];
 static DEFINE_MUTEX(tegra_cpu_lock);
 static bool is_suspended;
 static int suspend_index;
-static int wakeup_index;
 
 static bool force_policy_max;
-
-#ifdef CONFIG_TEGRA_CPU_FREQ_LOCK
-static DEFINE_MUTEX(tegra_cpulock_lock);
-static bool is_cpufreq_locked;
-static int cpulock_freq;
-static int cpulock_debug_timeout;
-static struct hrtimer cpulock_timer;
-#endif /* CONFIG_TEGRA_CPU_FREQ_LOCK */
 
 static int force_policy_max_set(const char *arg, const struct kernel_param *kp)
 {
@@ -251,12 +242,12 @@ int tegra_edp_update_thermal_zone(int temperature)
 
 	/* Update cpu rate if cpufreq (at least on cpu0) is already started;
 	   alter cpu dvfs table for this thermal zone if necessary */
-	tegra_cpu_dvfs_alter(edp_thermal_index, true);
+	tegra_cpu_dvfs_alter(edp_thermal_index, &edp_cpumask, true);
 	if (target_cpu_speed[0]) {
 		edp_update_limit();
 		tegra_cpu_set_speed_cap(NULL);
 	}
-	tegra_cpu_dvfs_alter(edp_thermal_index, false);
+	tegra_cpu_dvfs_alter(edp_thermal_index, &edp_cpumask, false);
 	mutex_unlock(&tegra_cpu_lock);
 
 	return ret;
@@ -330,6 +321,7 @@ static int tegra_cpu_edp_notify(
 	case CPU_UP_PREPARE:
 		mutex_lock(&tegra_cpu_lock);
 		cpu_set(cpu, edp_cpumask);
+		tegra_cpu_dvfs_alter(edp_thermal_index, &edp_cpumask, true);
 		edp_update_limit();
 
 		cpu_speed = tegra_getspeed(0);
@@ -344,13 +336,16 @@ static int tegra_cpu_edp_notify(
 			printk(KERN_DEBUG "tegra CPU:%sforce EDP limit %u kHz"
 				"\n", ret ? " failed to " : " ", new_speed);
 		}
+		tegra_cpu_dvfs_alter(edp_thermal_index, &edp_cpumask, false);
 		mutex_unlock(&tegra_cpu_lock);
 		break;
 	case CPU_DEAD:
 		mutex_lock(&tegra_cpu_lock);
 		cpu_clear(cpu, edp_cpumask);
+		tegra_cpu_dvfs_alter(edp_thermal_index, &edp_cpumask, true);
 		edp_update_limit();
 		tegra_cpu_set_speed_cap(NULL);
+		tegra_cpu_dvfs_alter(edp_thermal_index, &edp_cpumask, false);
 		mutex_unlock(&tegra_cpu_lock);
 		break;
 	}
@@ -440,9 +435,6 @@ static int __init tegra_cpu_debug_init(void)
 	if (!cpu_tegra_debugfs_root)
 		return -ENOMEM;
 
-	if (tegra_throttle_debug_init(cpu_tegra_debugfs_root))
-		goto err_out;
-
 	if (tegra_edp_debug_init(cpu_tegra_debugfs_root))
 		goto err_out;
 
@@ -484,17 +476,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 	struct cpufreq_freqs freqs;
 
 	freqs.old = tegra_getspeed(0);
-#ifdef CONFIG_TEGRA_CPU_FREQ_LOCK
-	/*
-	 * Thermal throttling supersedes cpufreq lock.
-	 * cpufreq goes down to minimum during the suspend mode.
-	 */
-	if (!tegra_is_throttling() && is_cpufreq_locked
-		&& !is_suspended && (rate < cpulock_freq))
-		freqs.new = cpulock_freq;
-	else
-#endif /* CONFIG_TEGRA_CPU_FREQ_LOCK */
-		freqs.new = rate;
+	freqs.new = rate;
 
 	rate = clk_round_rate(cpu_clk, rate * 1000);
 	if (!IS_ERR_VALUE(rate))
@@ -595,97 +577,6 @@ unsigned long tegra_cpu_highest_speed(void) {
 	return rate;
 }
 
-#ifdef CONFIG_TEGRA_CPU_FREQ_LOCK
-/*
- * c.f. cpufreq_frequency_table in tegra2_clocks.c
- * 216000, 312000, 456000, 608000, 760000, 816000, 912000, 1000000 etc.
- * min_rate is in KHz.
- */
-void tegra_cpu_lock_speed(int min_rate, int timeout_ms)
-{
-	int idx = 0, found = 0;
-
-	/* cpu frequency validity test */
-	while (freq_table[idx].frequency != CPUFREQ_TABLE_END) {
-		if (freq_table[idx++].frequency == min_rate) {
-			found = 1;
-			break;
-		}
-	}
-	if (!found) {
-		pr_err("cpu-tegra: Failed to lock cpu frequency to %d kHz\n"
-				, min_rate);
-		return;
-	}
-
-	mutex_lock(&tegra_cpulock_lock);
-
-	printk(KERN_DEBUG "%s: min_rate(%d),timeout(%d)\n",
-	       __func__, min_rate, timeout_ms);
-	cpulock_freq = min_rate;
-	is_cpufreq_locked = true;
-	tegra_update_cpu_speed(tegra_getspeed(0));
-	if (timeout_ms) {
-		hrtimer_cancel(&cpulock_timer);
-		hrtimer_start(&cpulock_timer,
-			ns_to_ktime((u64)timeout_ms * NSEC_PER_MSEC),
-			HRTIMER_MODE_REL);
-	}
-
-	mutex_unlock(&tegra_cpulock_lock);
-}
-EXPORT_SYMBOL_GPL(tegra_cpu_lock_speed);
-
-void tegra_cpu_unlock_speed(void)
-{
-	mutex_lock(&tegra_cpulock_lock);
-
-	printk(KERN_DEBUG "%s is called.\n", __func__);
-
-	cpulock_freq = 0;
-	is_cpufreq_locked = false;
-	hrtimer_cancel(&cpulock_timer);
-
-	mutex_unlock(&tegra_cpulock_lock);
-}
-EXPORT_SYMBOL_GPL(tegra_cpu_unlock_speed);
-
-static enum hrtimer_restart tegra_cpulock_timer_func(struct hrtimer *timer)
-{
-	cpulock_freq = 0;
-	is_cpufreq_locked = false;
-	printk(KERN_DEBUG "%s is called\n", __func__);
-
-	return HRTIMER_NORESTART;
-}
-
-int tegra_cpu_round(unsigned int cpu_freq)
-{
-	unsigned int i;
-	unsigned int cpu_idx = 0;
-
-	while (freq_table[cpu_idx].frequency != CPUFREQ_TABLE_END)
-		cpu_idx++;
-
-	/* verify with cpufreq limits */
-	if ((cpu_freq < freq_table[0].frequency) ||
-	(cpu_freq > freq_table[cpu_idx].frequency))
-		printk(KERN_ERR "This freq is out of limit (%d ~ %d KHz)\n",
-		freq_table[0].frequency,
-		freq_table[cpu_idx].frequency);
-
-	for (i = cpu_idx-1; freq_table[i].frequency != CPUFREQ_TABLE_END; i--) {
-		if (freq_table[i].frequency >= cpu_freq)
-			cpu_idx = i;
-		else
-			break;
-	}
-
-	return freq_table[cpu_idx].frequency;
-}
-
-#endif /* CONFIG_TEGRA_CPU_FREQ_LOCK */
-
 int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
 {
 	int ret = 0;
@@ -761,11 +652,10 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 	} else if (event == PM_POST_SUSPEND) {
 		unsigned int freq;
 		is_suspended = false;
-		/* tegra_cpu_edp_init(true); */
-		/* tegra_cpu_set_speed_cap(&freq); */
-		tegra_update_cpu_speed(freq_table[wakeup_index].frequency);
+		tegra_cpu_edp_init(true);
+		tegra_cpu_set_speed_cap(&freq);
 		pr_info("Tegra cpufreq resume: restoring frequency to %d kHz\n",
-			freq_table[wakeup_index].frequency);
+			freq);
 	}
 	mutex_unlock(&tegra_cpu_lock);
 
@@ -868,7 +758,6 @@ static int __init tegra_cpufreq_init(void)
 		return -EINVAL;
 
 	suspend_index = table_data->suspend_index;
-	wakeup_index = table_data->wakeup_index;
 
 	ret = tegra_throttle_init(&tegra_cpu_lock);
 	if (ret)
@@ -880,10 +769,7 @@ static int __init tegra_cpufreq_init(void)
 
 	freq_table = table_data->freq_table;
 	tegra_cpu_edp_init(false);
-#ifdef CONFIG_TEGRA_CPU_FREQ_LOCK
-	hrtimer_init(&cpulock_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	cpulock_timer.function = tegra_cpulock_timer_func;
-#endif /* CONFIG_TEGRA_CPU_FREQ_LOCK */
+
 	ret = cpufreq_register_notifier(
 		&tegra_cpufreq_policy_nb, CPUFREQ_POLICY_NOTIFIER);
 	if (ret)

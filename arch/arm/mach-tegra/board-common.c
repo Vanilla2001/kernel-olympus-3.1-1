@@ -110,25 +110,7 @@ static int __init tegrapart_setup(char *options)
 }
 __setup("tegrapart=", tegrapart_setup);
 #endif
-#ifdef CONFIG_MTD_NAND_TEGRA
-
-static struct platform_device tegra_nand_device = {
-	.name = "tegra_nand",
-	.id = -1,
-	.dev = {
-		.platform_data = &tegra_nand_plat,
-	},
-};
-#endif
-
-#ifdef CONFIG_TEGRA_NVRM
-static struct platform_device tegra_nvrm_device = {
-	.name = "nvrm",
-	.id = -1,
-};
-#endif
-
-#ifdef CONFIG_KEYBOARD_TEGRA
+#if 0
 extern struct tegra_kbc_plat tegra_kbc_platform;
 
 static struct resource tegra_kbc_resources[] = {
@@ -155,20 +137,6 @@ static struct platform_device tegra_kbc_device = {
 	
 };
 #endif
-#if 0
-#ifdef CONFIG_KEYBOARD_GPIO
-extern struct gpio_keys_platform_data tegra_button_data;
-static struct platform_device tegra_button_device = {
-	.name   = "gpio-keys",
-	.id     = 3,
-	.dev    = {
-		.platform_data  = &tegra_button_data,
-	}
-};
-#endif
-#endif
-
-#ifdef CONFIG_TEGRA_IOVMM_GART
 static struct resource tegra_gart_resources[] = {
 	[0] = {
 		.start = TEGRA_MC_BASE,
@@ -181,15 +149,14 @@ static struct resource tegra_gart_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 };
+
 static struct platform_device tegra_gart_device = {
 	.name = "tegra_gart",
 	.id = -1,
 	.resource = tegra_gart_resources,
 	.num_resources = ARRAY_SIZE(tegra_gart_resources),
 };
-#endif
 
-#ifdef CONFIG_FB_TEGRA_GRHOST
 static struct resource tegra_grhost_resources[] = {
 	[0] = {
 		.name = "host1x",
@@ -240,15 +207,14 @@ static struct resource tegra_grhost_resources[] = {
 		.flags = IORESOURCE_IRQ,
 	},
 };
+
 static struct platform_device tegra_grhost_device = {
 	.name = "tegra_grhost",
 	.id = -1,
 	.resource = tegra_grhost_resources,
 	.num_resources = ARRAY_SIZE(tegra_grhost_resources),
 };
-#endif
 
-#ifdef CONFIG_USB_GADGET_TEGRA
 static u64 tegra_udc_dma_mask = DMA_BIT_MASK(32);
 static struct fsl_usb2_platform_data tegra_udc_platform = {
 	.phy_mode = FSL_USB2_PHY_UTMI,
@@ -266,6 +232,7 @@ static struct resource tegra_udc_resources[] = {
 		.flags = IORESOURCE_IRQ,
 	},
 };
+
 static struct platform_device tegra_udc_device = {
 	.name = "tegra-udc",
 	.id = 0,
@@ -277,34 +244,12 @@ static struct platform_device tegra_udc_device = {
 	.resource = tegra_udc_resources,
 	.num_resources = ARRAY_SIZE(tegra_udc_resources),
 };
-#endif
 
 static struct platform_device *tegra_devices[] __initdata = {
-#ifdef CONFIG_MTD_NAND_TEGRA
-	&tegra_nand_device,
-#endif
-#ifdef CONFIG_TEGRA_NVRM
-	&tegra_nvrm_device,
-#endif
-#ifdef CONFIG_KEYBOARD_TEGRA
-	&tegra_kbc_device,
-#endif
-
-#if 0
-#ifdef CONFIG_KEYBOARD_GPIO
-	&tegra_button_device,
-#endif
-#endif
-
-#ifdef CONFIG_USB_GADGET_TEGRA
+/*	&tegra_kbc_device,*/
 	&tegra_udc_device,
-#endif
-#ifdef CONFIG_TEGRA_IOVMM_GART
 	&tegra_gart_device,
-#endif
-#ifdef CONFIG_FB_TEGRA_GRHOST
 	&tegra_grhost_device,
-#endif
 };
 
 void __init tegra_register_socdev(void)

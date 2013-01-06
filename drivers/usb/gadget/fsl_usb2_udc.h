@@ -643,9 +643,6 @@ struct fsl_udc {
 	struct work_struct charger_work; /* work for setting regulator current limit */
 	struct work_struct boost_cpufreq_work; /* work for boosting cpu frequency */
 	struct work_struct irq_work; /* irq work for controlling the usb power*/
-	int is_usb_ready;
-	struct delayed_work usb_ready_work;
-	struct mutex mutex;
 };
 
 /*-------------------------------------------------------------------------*/
@@ -725,8 +722,8 @@ struct platform_device;
 int fsl_udc_clk_init(struct platform_device *pdev);
 void fsl_udc_clk_finalize(struct platform_device *pdev);
 void fsl_udc_clk_release(void);
-void fsl_udc_clk_suspend(bool is_dpd);
-void fsl_udc_clk_resume(bool is_dpd);
+void fsl_udc_clk_suspend(void);
+void fsl_udc_clk_resume(void);
 void fsl_udc_clk_enable(void);
 void fsl_udc_clk_disable(void);
 bool fsl_udc_charger_detect(void);

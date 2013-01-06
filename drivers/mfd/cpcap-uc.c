@@ -45,6 +45,8 @@
 #define HWCFG_ADDR_ST        0x0130
 #define HWCFG_ADDR_TI        0x90F4  /* Not yet implemented in the TI uC. */
 
+/*#define HWCFG_ADDR_ST        0x0122*/
+
 enum {
 	READ_STATE_1,	/* Send size and location of RAM read. */
 	READ_STATE_2,   /*!< Read MT registers. */
@@ -79,8 +81,6 @@ struct cpcap_uc_data {
 static struct cpcap_uc_data *cpcap_uc_info;
 
 static int fops_open(struct inode *inode, struct file *file);
-/*static int fops_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, unsigned long arg);*/
 static long fops_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static ssize_t fops_write(struct file *file, const char *buf,
 			  size_t count, loff_t *ppos);
@@ -329,8 +329,6 @@ static void reset_handler(enum cpcap_irqs irq, void *data)
 
 	cpcap_regacc_write(uc_data->cpcap, CPCAP_REG_MI2, 0, 0xFFFF);
 	cpcap_regacc_write(uc_data->cpcap, CPCAP_REG_MIM1, 0xFFFF, 0xFFFF);
-	cpcap_regacc_write_secondary(uc_data->cpcap, CPCAP_REG_MI2, 0, 0xFFFF);
-	cpcap_regacc_write_secondary(uc_data->cpcap, CPCAP_REG_MIM1, 0xFFFF, 0xFFFF);
 	cpcap_irq_mask(uc_data->cpcap, CPCAP_IRQ_PRIMAC);
 	cpcap_irq_unmask(uc_data->cpcap, CPCAP_IRQ_UCRESET);
 
@@ -551,8 +549,6 @@ err:
 	return retval;
 }
 
-/*static int fops_ioctl(struct inode *inode, struct file *file,
-		      unsigned int cmd, unsigned long arg)*/
 static long fops_ioctl(struct file *file, unsigned int cmd,
 		       unsigned long arg)
 {
@@ -568,14 +564,12 @@ static long fops_ioctl(struct file *file, unsigned int cmd,
 		 */
 		data->is_ready = 1;
 
-		retval = cpcap_uc_start(data->cpcap, CPCAP_BANK_PRIMARY,
-			                (enum cpcap_macro)arg);
+		retval = cpcap_uc_start(data->cpcap, CPCAP_BANK_PRIMARY, (enum cpcap_macro)arg);
 
 		break;
 
 	case CPCAP_IOCTL_UC_MACRO_STOP:
-		retval = cpcap_uc_stop(data->cpcap, CPCAP_BANK_PRIMARY,
-				       (enum cpcap_macro)arg);
+		retval = cpcap_uc_stop(data->cpcap, CPCAP_BANK_PRIMARY, (enum cpcap_macro)arg);
 		break;
 
 	case CPCAP_IOCTL_UC_GET_VENDOR:
@@ -778,7 +772,7 @@ static int fw_load(struct cpcap_uc_data *uc_data, struct device *dev)
 		}
 
 		num_words = num_bytes >> 1;
-		dev_dbg(dev, "Loading %d word(s) at 0x%04x\n",
+		dev_info(dev, "Loading %d word(s) at 0x%04x\n",
 			 num_words, be32_to_cpu(rec->addr));
 
 		buf = kzalloc(num_bytes, GFP_KERNEL);
@@ -907,15 +901,21 @@ static int cpcap_uc_probe(struct platform_device *pdev)
 
 err_fw:
 	misc_deregister(&uc_dev);
+	printk(KERN_INFO "pICS_%s: unable to load firmware\n",__func__);
 err_priramw:
 	cpcap_irq_free(data->cpcap, CPCAP_IRQ_UC_PRIRAMW);
+	printk(KERN_INFO "pICS_%s: cpcap error err_priramw\n",__func__);
 err_priramr:
 	cpcap_irq_free(data->cpcap, CPCAP_IRQ_UC_PRIRAMR);
+	printk(KERN_INFO "pICS_%s: cpcap error err_priramr\n",__func__);
 err_ucreset:
 	cpcap_irq_free(data->cpcap, CPCAP_IRQ_UCRESET);
+	printk(KERN_INFO "pICS_%s: cpcap error err_ucreset\n",__func__);
 err_primac:
 	cpcap_irq_free(data->cpcap, CPCAP_IRQ_PRIMAC);
+	printk(KERN_INFO "pICS_%s: cpcap error err_primac\n",__func__);
 err_free:
+	printk(KERN_INFO "pICS_%s: cpcap error err_free\n",__func__);
 	kfree(data);
 
 	return retval;

@@ -123,13 +123,6 @@ extern unsigned long tegra_grhost_aperture;
 
 extern struct sys_timer tegra_timer;
 
-#ifndef CONFIG_MACH_BOSE_ATT
-extern int n1_panel_pre_enable(void);
-extern int n1_panel_disable(void);
-extern int cmc623_suspend(struct early_suspend *h);
-extern int cmc623_resume(struct early_suspend *h);
-#endif
-
 enum board_fab {
 	BOARD_FAB_A = 0,
 	BOARD_FAB_B,
@@ -164,19 +157,17 @@ void tegra_get_board_info(struct board_info *);
 void tegra_get_pmu_board_info(struct board_info *bi);
 void tegra_get_display_board_info(struct board_info *bi);
 void tegra_get_camera_board_info(struct board_info *bi);
-#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
-#define SET_CONSERVATIVE_GOVERNOR_UP_THRESHOLD 		95
-#define SET_CONSERVATIVE_GOVERNOR_DOWN_THRESHOLD 	50
-#define SET_CONSERVATIVE_GOVERNOR_FREQ_STEP 		3
 
-#ifdef CONFIG_MACH_N1
-void n1_save_wakeup_key(int lp_state);
+#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
+#define MAX_GOV_NAME_LEN 16
+extern char cpufreq_default_gov[][MAX_GOV_NAME_LEN];
+extern char *cpufreq_conservative_gov;
+
+void cpufreq_store_default_gov(void);
+void cpufreq_restore_default_gov(void);
+void cpufreq_change_gov(char *target_gov);
 #endif
-void cpufreq_save_default_governor(void);
-void cpufreq_restore_default_governor(void);
-void cpufreq_set_conservative_governor(void);
-void cpufreq_set_conservative_governor_param(char *name, int value);
-#endif
+
 int get_core_edp(void);
 enum panel_type get_panel_type(void);
 int tegra_get_modem_id(void);

@@ -18,7 +18,7 @@ int __init board_boot_mode_init(char *s)
 }
 __setup("androidboot.mode=", board_boot_mode_init);
 
-#ifdef CONFIG_USB_MOT_ANDROID
+
 static char *usb_functions_ums[] = {
 	"usb_mass_storage",
 };
@@ -79,10 +79,8 @@ static char *bp_usb_functions_all[] = {
 	"usbnet",
 	"adb"
 };
-#endif
 
 static struct android_usb_product usb_products[] = {
-#ifdef CONFIG_USB_MOT_ANDROID
 	{
 		.product_id     = 0x708a,
 		.num_functions  = ARRAY_SIZE(usb_functions_phone_portal),
@@ -125,11 +123,9 @@ static struct android_usb_product usb_products[] = {
 		.functions	= usb_functions_rndis_adb,
 	},
 #endif
-#endif
 };
 
 static struct android_usb_product bp_usb_products[] = {
-#ifdef CONFIG_USB_MOT_ANDROID
 	{
 		.product_id     = 0x7093,
 		.num_functions  = ARRAY_SIZE(bp_usb_functions_bp),
@@ -150,7 +146,6 @@ static struct android_usb_product bp_usb_products[] = {
 		.num_functions  = ARRAY_SIZE(bp_usb_functions_all),
 		.functions      = bp_usb_functions_all,
 	},
-#endif
 };
 
 static struct android_usb_platform_data andusb_plat = {
@@ -244,11 +239,6 @@ void tegra_get_serial_number(void)
 	char serial[17];
 	int i;
 	char *src;
-
-/*	NvRmQueryChipUniqueId(s_hRmGlobal, sizeof(chip_id), (void *)chip_id);
-	printk(KERN_INFO "pICS_%s: chip_id[0] = %08x, chip_id[1] = %08x",__func__, chip_id[0], chip_id[1]);
-	snprintf(serial, sizeof(serial), "%08x%08x", chip_id[1], chip_id[0]);
-	printk(KERN_INFO "pICS_%s: serial = %s",__func__, serial);*/
 	
 	snprintf(serial, sizeof(serial), "037c7148423ff097");
 

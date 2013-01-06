@@ -123,7 +123,7 @@ static struct ov5650_reg mode_start[] = {
 	{0x4000, 0x01},
 	{0x401c, 0x48},
 	{0x401d, 0x08},
-	{0x5000, 0x00},
+	{0x5000, 0x06},
 	{0x5001, 0x00},
 	{0x5002, 0x00},
 	{0x503d, 0x00},
@@ -296,7 +296,6 @@ static struct ov5650_reg mode_2080x1164[] = {
 	{0x401d, 0x08},
 	{0x4001, 0x02},
 
-	{0x5000, 0x00},
 	{0x5001, 0x00},
 	{0x5002, 0x00},
 	{0x503d, 0x00},
@@ -419,7 +418,6 @@ static struct ov5650_reg mode_1920x1080[] = {
 	{0x401d, 0x08},
 	{0x4001, 0x02},
 
-	{0x5000, 0x00},
 	{0x5001, 0x00},
 	{0x5002, 0x00},
 	{0x503d, 0x00},
@@ -669,7 +667,6 @@ static struct ov5650_reg mode_320x240[] = {
 	{0x3810, 0x40},
 	{0x3836, 0x41},
 	{0x505f, 0x04},
-	{0x5000, 0x06},
 	{0x5001, 0x00},
 	{0x5002, 0x02},
 	{0x503d, 0x00},
@@ -1255,14 +1252,14 @@ static int set_power_helper(struct ov5650_platform_data *pdata,
 	if (pdata) {
 		if (powerLevel && pdata->power_on) {
 			if (*ref_cnt == 0)
-			pdata->power_on();
+				pdata->power_on();
 			*ref_cnt = *ref_cnt + 1;
 		}
 		else if (pdata->power_off) {
 			*ref_cnt = *ref_cnt - 1;
 			if (*ref_cnt <= 0)
-			pdata->power_off();
-	}
+				pdata->power_off();
+		}
 	}
 	return 0;
 }
@@ -1297,7 +1294,7 @@ static int ov5650_get_sensor_id(struct ov5650_info *info)
 
 	pr_info("%s\n", __func__);
 	if (info->sensor_data.fuse_id_size)
-	return 0;
+		return 0;
 
 	ov5650_set_power(info, 1);
 
@@ -1581,4 +1578,4 @@ static void __exit ov5650_exit(void)
 
 module_init(ov5650_init);
 module_exit(ov5650_exit);
-
+MODULE_LICENSE("GPL v2");

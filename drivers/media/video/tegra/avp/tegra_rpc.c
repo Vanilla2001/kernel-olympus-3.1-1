@@ -281,9 +281,8 @@ static struct trpc_endpoint *_create_peer(struct tegra_rpc_info *info,
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (peer->ready || !ep->ready || port->closed) {
-		if (port->closed)
-			pr_err("%s: port is closed!\n", __func__);
+	BUG_ON(port->closed);
+	if (peer->ready || !ep->ready) {
 		peer = NULL;
 		goto out;
 	}

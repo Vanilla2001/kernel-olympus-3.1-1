@@ -27,6 +27,7 @@
 #include <linux/sound.h>
 #include <linux/poll.h>
 #include <linux/delay.h>
+#include <linux/sched.h>
 #ifdef CONFIG_WAKELOCK
 #include <linux/wakelock.h>
 #endif
@@ -133,7 +134,7 @@ struct audio_stream {
 
 static int audio_stdac_open(struct inode *, struct file *);
 static int audio_stdac_release(struct inode *, struct file *);
-static int audio_ioctl(struct inode *, struct file *file, unsigned int cmd,
+static long audio_ioctl(struct inode *, struct file *file, unsigned int cmd,
 			unsigned long arg);
 static ssize_t audio_write(struct file *fp, const char *buf, size_t bytes,
 			loff_t *nouse);
@@ -159,7 +160,7 @@ static const struct file_operations audio_stdac_fops = {
 	.owner = THIS_MODULE,
 	.open = audio_stdac_open,
 	.release = audio_stdac_release,
-	.ioctl = audio_ioctl,
+	.unlocked_ioctl = audio_ioctl,
 	.write = audio_write,
 };
 
@@ -167,7 +168,7 @@ static const struct file_operations codec_fops = {
 	.owner = THIS_MODULE,
 	.open = audio_codec_open,
 	.release = audio_codec_release,
-	.ioctl = audio_ioctl,
+	.unlocked_ioctl = audio_ioctl,
 	.write = audio_write,
 	.read = audio_codec_read,
 };
@@ -176,7 +177,7 @@ static const struct file_operations mixer_fops = {
 	.owner = THIS_MODULE,
 	.open = audio_mixer_open,
 	.release = audio_mixer_close,
-	.ioctl = audio_ioctl,
+	.unlocked_ioctl = audio_ioctl,
 };
 
 /* Driver information structure*/
@@ -1646,7 +1647,7 @@ static int audio_stdac_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int audio_ioctl(struct inode *inode, struct file *file,
+static long audio_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
 	int minor = MINOR(inode->i_rdev);
