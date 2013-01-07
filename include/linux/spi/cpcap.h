@@ -503,6 +503,11 @@ enum cpcap_bank {
         CPCAP_BANK_SECONDARY,
 };
 
+enum cpcap_standby {
+        CPCAP_PRISTANDBY = 0x01,
+        CPCAP_SECSTANDBY = 0x02,
+};
+
 enum cpcap_macro {
 	CPCAP_MACRO_ROMR,
 	CPCAP_MACRO_RAMW,
@@ -740,13 +745,16 @@ struct cpcap_whisper_request {
  * OUTPUTS: The command writes the register data back to user space at the
  * location specified, or it may return an error code.
  */
-#ifdef CONFIG_RTC_INTF_CPCAP_SECCLKD
+#ifdef CONFIG_RTC_INTF_SECCLKD
 #define CPCAP_IOCTL_GET_RTC_TIME_COUNTER \
 	_IOR(0, CPCAP_IOCTL_NUM_RTC_COUNT, struct cpcap_rtc_time_cnt)
 #endif
 
 #define CPCAP_IOCTL_TEST_READ_REG \
 	_IOWR(0, CPCAP_IOCTL_NUM_TEST_READ_REG, struct cpcap_regacc*)
+
+#define CPCAP_IOCTL_TEST_SEC_READ_REG \
+	_IOWR(0, CPCAP_IOCTL_NUM_TEST_SEC_READ_REG, struct cpcap_regacc*)
 
 /*
  * Writes the specifed cpcap register.
@@ -762,6 +770,9 @@ struct cpcap_whisper_request {
  */
 #define CPCAP_IOCTL_TEST_WRITE_REG \
 	_IOWR(0, CPCAP_IOCTL_NUM_TEST_WRITE_REG, struct cpcap_regacc*)
+
+#define CPCAP_IOCTL_TEST_SEC_WRITE_REG \
+	_IOWR(0, CPCAP_IOCTL_NUM_TEST_SEC_WRITE_REG, struct cpcap_regacc*)
 
 #define CPCAP_IOCTL_ADC_PHASE \
 	_IOWR(0, CPCAP_IOCTL_NUM_ADC_PHASE, struct cpcap_adc_phase*)
@@ -792,7 +803,13 @@ struct cpcap_whisper_request {
 	_IOW(0, CPCAP_IOCTL_NUM_UC_SET_TURBO_MODE, unsigned short)
 
 #define CPCAP_IOCTL_ACCY_WHISPER \
-	_IOW(0, CPCAP_IOCTL_NUM_ACCY_WHISPER, struct cpcap_whisper_request*)
+	_IOW(0, CPCAP_IOCTL_NUM_ACCY_WHISPER, unsigned long)
+
+#define CPCAP_IOCTL_AUDIO_PWR_MODE \
+	_IOW(0, CPCAP_IOCTL_NUM_AUDIO_PWR_MODE,  unsigned short)
+
+#define CPCAP_IOCTL_AUDIO_PWR_ENABLE \
+	_IOW(0, CPCAP_IOCTL_NUM_AUDIO_PWR_ENABLE,  unsigned short)
 
 #ifdef __KERNEL__
 struct cpcap_device {
@@ -829,6 +846,8 @@ int cpcap_regacc_read(struct cpcap_device *cpcap, enum cpcap_reg reg,
 int cpcap_regacc_write_secondary(struct cpcap_device *cpcap, enum cpcap_reg reg, unsigned short value, unsigned short mask);
 
 int cpcap_regacc_read_secondary(struct cpcap_device *cpcap, enum cpcap_reg reg, unsigned short *value_ptr);
+
+void cpcap_regacc_dump(struct cpcap_device *cpcap, char *);
 
 int cpcap_regacc_init(struct cpcap_device *cpcap);
 

@@ -899,15 +899,15 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 	DECLARE_COMPLETION_ONSTACK(done);
 	int status;
 	struct spi_master *master = spi->master;
-
+	printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
 	message->complete = spi_complete;
 	message->context = &done;
 
 	if (!bus_locked)
 		mutex_lock(&master->bus_lock_mutex);
-
+	printk(KERN_INFO "pICS_%s: step 2...\n",__func__);
 	status = spi_async_locked(spi, message);
-
+	printk(KERN_INFO "pICS_%s: step 3...\n",__func__);
 	if (!bus_locked)
 		mutex_unlock(&master->bus_lock_mutex);
 
@@ -916,6 +916,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 		status = message->status;
 	}
 	message->context = NULL;
+	printk(KERN_INFO "pICS_%s: step 4...\n",__func__);
 	return status;
 }
 
