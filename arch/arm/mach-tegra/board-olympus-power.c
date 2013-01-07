@@ -792,7 +792,7 @@ struct regulator_consumer_supply cpcap_vvib_consumers[] = {
 struct regulator_consumer_supply cpcap_vaudio_consumers[] = {
 	REGULATOR_CONSUMER("vaudio", NULL /* mic opamp */),
 };
-#if 0
+
 static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 	[CPCAP_SW1] = {
 		.constraints = {
@@ -1018,17 +1018,16 @@ static struct cpcap_adc_ato cpcap_adc_ato = {
 	.adc_ps_factor_out 	= 0x0600,
 	.atox_ps_factor_out 	= 0x0000,
 };
-#endif
+
 struct cpcap_platform_data tegra_cpcap_data =
 {
 	.init = tegra_cpcap_spi_init,
 	.init_len = ARRAY_SIZE(tegra_cpcap_spi_init),
-/*	.leds = &tegra_cpcap_leds,
+	.leds = &tegra_cpcap_leds,
 	.regulator_mode_values = cpcap_regulator_mode_values,
 	.regulator_off_mode_values = cpcap_regulator_off_mode_values,
 	.regulator_init = cpcap_regulator,
-	.adc_ato = &cpcap_adc_ato,*/
-#if 0
+	.adc_ato = &cpcap_adc_ato,
 	.ac_changed = NULL,
 	.batt_changed = NULL,
 	.usb_changed = NULL,
@@ -1045,7 +1044,6 @@ struct cpcap_platform_data tegra_cpcap_data =
 		(CPCAP_HWCFG1_SEC_STBY_VWLAN1 |    /* WLAN1 may be reset in mot_setup_power(). */
 		 CPCAP_HWCFG1_SEC_STBY_VSIMCARD)},
 	.spdif_gpio = TEGRA_GPIO_PD4
-#endif
 };
 
 struct regulator_consumer_supply fixed_sdio_en_consumers[] = {
@@ -1268,21 +1266,21 @@ void __init olympus_suspend_init(void)
 			printk(KERN_INFO "pICS_%s: enabled PU6 wake...\n",__func__);*/
 
 	printk(KERN_INFO "pICS_%s: step KBC (irq nr %d)...\n",__func__, INT_KBC);
-			enable_irq(INT_KBC);
-			printk(KERN_INFO "pICS_%s: enabled KBC irq...\n",__func__);
+/*			enable_irq(INT_KBC);
+			printk(KERN_INFO "pICS_%s: enabled KBC irq...\n",__func__);*/
 			enable_irq_wake(INT_KBC);
 			printk(KERN_INFO "pICS_%s: enabled KBC wake...\n",__func__);
 
 printk(KERN_INFO "pICS_%s: step PWR (irq nr %d)...\n",__func__, INT_EXTERNAL_PMU);
 printk(KERN_INFO "pICS_%s: step PWR (GPIO nr %d)...\n",__func__, TEGRA_IRQ_TO_GPIO(INT_EXTERNAL_PMU));
-			enable_irq(INT_EXTERNAL_PMU);
-			printk(KERN_INFO "pICS_%s: enabled PWR irq...\n",__func__);
+/*			enable_irq(INT_EXTERNAL_PMU);
+			printk(KERN_INFO "pICS_%s: enabled PWR irq...\n",__func__);*/
 			enable_irq_wake(INT_EXTERNAL_PMU);
 			printk(KERN_INFO "pICS_%s: enabled PWR wake...\n",__func__);
 
 	printk(KERN_INFO "pICS_%s: step PV2 (irq nr %d)...\n",__func__, TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV2));
-			enable_irq(TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV2));
-			printk(KERN_INFO "pICS_%s: enabled PV2 irq...\n",__func__);
+/*			enable_irq(TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV2));
+			printk(KERN_INFO "pICS_%s: enabled PV2 irq...\n",__func__);*/
 			enable_irq_wake(TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV2));
 			printk(KERN_INFO "pICS_%s: enabled PV2 wake...\n",__func__);
 
@@ -1293,7 +1291,7 @@ void __init olympus_power_init(void)
 {
 	unsigned int i;
 	int error;
-#if 0
+
 	unsigned long pmc_ctrl;
 	unsigned long minor;
 
@@ -1358,7 +1356,6 @@ void __init olympus_power_init(void)
 	tegra_gpio_enable(TEGRA_GPIO_PT2);
 	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
 	gpio_direction_output(TEGRA_GPIO_PT2, 0);
-#endif
 
 	printk(KERN_INFO "pICS_%s: step in 2...\n",__func__);
 

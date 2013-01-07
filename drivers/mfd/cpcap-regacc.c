@@ -16,6 +16,7 @@
  * 02111-1307, USA
  */
 
+#include <linux/ctype.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/spi/spi.h>
@@ -54,7 +55,7 @@ static DEFINE_MUTEX(reg_access);
  * in this mask indicates that the corresponding bit (when not being changed)
  * should be written with a value of '0'.
  */
-static const struct {
+static struct {
 	/* Address of the register */
 	const unsigned short address;
 	/* Constant modifiability mask */
@@ -259,6 +260,175 @@ static const struct {
 	[CPCAP_REG_ST_TEST1]  = {8002, 0x0000, 0xFFFF, "ST_TEST1", 	0},
 };
 
+static unsigned int debug_flags;
+
+#define CPCAP_REGACC_DEBUG_STR_LEN 128
+static char debug_str[CPCAP_REGACC_DEBUG_STR_LEN];
+
+struct kparam_string cpcap_regacc_debug_str = {
+	.string			= debug_str,
+	.maxlen			= CPCAP_REGACC_DEBUG_STR_LEN,
+};
+
+static void update_debug_flags(void)
+{
+	enum cpcap_reg reg_id;
+
+	debug_flags = 0;
+	for (reg_id = 0; reg_id < ARRAY_SIZE(register_info_tbl); reg_id++)
+		debug_flags |= register_info_tbl[reg_id].debug_flags;
+}
+
+static enum cpcap_reg find_reg_id(char *reg_name, size_t len)
+{
+	enum cpcap_reg reg_id;
+
+	for (reg_id = 0; reg_id < ARRAY_SIZE(register_info_tbl); reg_id++)
+		if ((strncasecmp(register_info_tbl[reg_id].name, reg_name, len) == 0) &&
+			(strlen(register_info_tbl[reg_id].name) == len))
+			return reg_id;
+	return CPCAP_NUM_REG_CPCAP;
+}
+
+static unsigned int get_reg_name(char *src, char *reg_name)
+{
+	unsigned int i;
+
+	i = 0;
+	while (isalnum(*src))
+		reg_name[i++] = *src++;
+	reg_name[i] = '\0';
+	return i;
+}
+
+
+/*
+ * Parse the string used for setting up debugging of registers.  Only symbols
+ * can be used, numbers are ignored.  The genral format of the string is:
+ *
+ * low_reg_name-high_reg_name,single_reg_name =
+ *   DUMP_PRI|DUMP_SEC|LOG_PRI_W|LOG_PRI_R|LOG_SEC_W|LOG_SEC_R
+ *
+ * Where:
+ *   low_reg_name    - The name as specified in register_info_tbl[].name for
+ *                     the first register to update.
+ *   high_reg_name   - The name as specified in register_info_tbl[].name for
+ *                     the high register to update.
+ *   single_reg_name - A single register name to be updated.
+ *
+ *   DUMP_PRI  - Specifies the primary register must be dumped when entering
+ *               standby.
+ *   DUMP_SEC  - Specifies the secondary register must be dumped when entering
+ *               standby.
+ *   LOG_PRI_W - Specifies writes to the primary register must be logged.
+ *   LOG_PRI_R - Specifies reads to the primary register must be logged.
+ *   LOG_SEC_W - Specifies writes to the secondary register must be logged.
+ *   LOG_SEC_R - Specifies reads to the secondary register must be logged.
+ *
+ * Register ranges are specified with '-' between the names.  Register sets
+ * are seperated by a ','.
+ *
+ * Any number of the bits may be specified.  If none or 0 are specified, the
+ * mask is reset.
+ */
+int cpcap_regacc_set_debug(const char *kmessage, struct kernel_param *kp)
+{
+	int err;
+	unsigned int i;
+	unsigned int mask;
+	char *reg;
+	char *log_op;
+	char reg_name[12];
+	enum cpcap_reg start_reg;
+	enum cpcap_reg end_reg;
+	const struct {
+		unsigned int mask;
+		unsigned int len;
+		char op[11];
+	} op_tb[] = {
+		{CPCAP_DEBUG_FLAG_DUMP_PRI,  8, "DUMP_PRI"},
+		{CPCAP_DEBUG_FLAG_DUMP_SEC,  8, "DUMP_SEC"},
+		{CPCAP_DEBUG_FLAG_LOG_PRI_W, 9, "LOG_PRI_W"},
+		{CPCAP_DEBUG_FLAG_LOG_PRI_R, 9, "LOG_PRI_R"},
+		{CPCAP_DEBUG_FLAG_LOG_SEC_W, 9, "LOG_SEC_W"},
+		{CPCAP_DEBUG_FLAG_LOG_SEC_R, 9, "LOG_SEC_R"}
+	};
+
+	err = param_set_copystring(kmessage, kp);
+	/* Break the string up into the regester id part and the debug flag
+	   part. */
+	if (err)
+		return err;
+
+	reg = debug_str;
+	log_op = debug_str;
+	while ((*log_op) && (*log_op != '='))
+		log_op++;
+
+	*log_op++ = '\0';
+
+	/* Get the debug mask from the debug flag part. */
+	mask = 0;
+	while ((*log_op) && (!isalnum(*log_op)))
+		log_op++;
+
+	if (*log_op != '0') {
+		while (*log_op) {
+			for (i = 0; i < sizeof(op_tb)/sizeof(op_tb[0]); i++)
+				if (strncasecmp(log_op, op_tb[i].op, op_tb[i].len) == 0) {
+					mask |= op_tb[i].mask;
+					log_op += op_tb[i].len;
+				}
+			while (isalnum(*log_op))
+				log_op++;
+			while ((*log_op) && (!isalnum(*log_op)))
+				log_op++;
+		}
+	}
+
+	/* Update the debug table based on the input. */
+	while (*reg) {
+		while ((*reg) && (!isalnum(*reg)))
+			reg++;
+		i = get_reg_name(reg, reg_name);
+		if (i > 0) {
+			reg += i;
+			start_reg = find_reg_id(reg_name, i);
+			end_reg = start_reg;
+			while (isspace(*reg))
+				reg++;
+			if (*reg == '-') {
+				reg++;
+				while ((*reg) && (!isalnum(*reg)))
+					reg++;
+				i = get_reg_name(reg, reg_name);
+				if (i > 0) {
+					reg += i;
+					end_reg = find_reg_id(reg_name, i);
+					if (start_reg > end_reg) {
+						i = start_reg;
+						start_reg = end_reg;
+						end_reg = i;
+					}
+				} else
+					while (isalnum(*reg))
+						reg++;
+			}
+			if (start_reg < CPCAP_NUM_REG_CPCAP) {
+				if (end_reg >= CPCAP_NUM_REG_CPCAP)
+					end_reg = CPCAP_NUM_REG_CPCAP-1;
+				for (i = start_reg; i <= end_reg; i++)
+					register_info_tbl[i].debug_flags = mask;
+			}
+		} else
+			while (isalnum(*reg))
+				reg++;
+	}
+	update_debug_flags();
+	return 0;
+}
+
+
 static int cpcap_spi_access(struct spi_device *spi, u8 *buf,
 			    size_t len)
 {
@@ -283,16 +453,28 @@ static int cpcap_config_for_read(struct spi_device *spi, unsigned short reg,
 	u8 *buf = (u8 *) &buf32;
 
 	if (spi != NULL) {
+#ifdef CONFIG_ARCH_TEGRA
+      buf[0] = (reg >> 6) & 0x000000FF;
+      buf[1] = (reg << 2) & 0x000000FF;
+      buf[2] = 0;
+      buf[3] = 0;
+#else
 		buf[3] = (reg >> 6) & 0x000000FF;
 		buf[2] = (reg << 2) & 0x000000FF;
 		buf[1] = 0;
 		buf[0] = 0;
-
+#endif
 		status = cpcap_spi_access(spi, buf, 4);
 
 		if (status == 0)
-			*data = buf[0] | (buf[1] << 8);
-	}
+
+#ifdef CONFIG_ARCH_TEGRA
+      *data = buf[3] | (buf[2] << 8);
+#else
+		*data = buf[0] | (buf[1] << 8);
+#endif
+
+ 	}
 
 	return status;
 }
@@ -305,14 +487,21 @@ static int cpcap_config_for_write(struct spi_device *spi, unsigned short reg,
 	u8 *buf = (u8 *) &buf32;
 
 	if (spi != NULL) {
+
+#ifdef CONFIG_ARCH_TEGRA
+      buf[0] = ((reg >> 6) & 0x000000FF) | 0x80;
+      buf[1] = (reg << 2) & 0x000000FF;
+      buf[2] = (data >> 8) & 0x000000FF;
+      buf[3] = data & 0x000000FF;
+#else
 		buf[3] = ((reg >> 6) & 0x000000FF) | 0x80;
 		buf[2] = (reg << 2) & 0x000000FF;
 		buf[1] = (data >> 8) & 0x000000FF;
 		buf[0] = data & 0x000000FF;
+#endif
 
 		status = cpcap_spi_access(spi, buf, 4);
 	}
-
 	return status;
 }
 
@@ -329,7 +518,21 @@ int cpcap_regacc_read(struct cpcap_device *cpcap, enum cpcap_reg reg,
 				      [reg].address, value_ptr);
 
 		mutex_unlock(&reg_access);
+		if (cpcap->spi->chip_select != CPCAP_SECONDARY_CS) {
+			if (register_info_tbl[reg].debug_flags&CPCAP_DEBUG_FLAG_LOG_PRI_R)
+				printk(KERN_INFO "%s Primary register: %d %s %04x\n",
+					__func__, reg, register_info_tbl[reg].name, *value_ptr);
+		} else {
+			if (register_info_tbl[reg].debug_flags&CPCAP_DEBUG_FLAG_LOG_SEC_R)
+				printk(KERN_INFO "%s Secondary register: %d %s %04x\n",
+					__func__, reg, register_info_tbl[reg].name, *value_ptr);
+		}
 	}
+
+	if (retval)
+		printk (KERN_ERR "%s: Unable to read from register %d\n",
+			__func__, register_info_tbl[reg].address);
+
 
 	return retval;
 }
@@ -343,16 +546,17 @@ int cpcap_regacc_write(struct cpcap_device *cpcap,
 	unsigned short old_value = 0;
 	struct cpcap_platform_data *data;
 	struct spi_device *spi = cpcap->spi;
-
+	printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
 	data = (struct cpcap_platform_data *)spi->controller_data;
-
+	printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
 	if (IS_CPCAP(reg) &&
 	    (mask & register_info_tbl[reg].constant_mask) == 0) {
+		printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
 		mutex_lock(&reg_access);
 
 		value &= mask;
-
 		if ((register_info_tbl[reg].rbw_mask) != 0) {
+			printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
 			retval = cpcap_config_for_read(spi, register_info_tbl
 						       [reg].address,
 						       &old_value);
@@ -366,6 +570,15 @@ int cpcap_regacc_write(struct cpcap_device *cpcap,
 		retval = cpcap_config_for_write(spi,
 						register_info_tbl[reg].address,
 						value);
+	if (cpcap->spi->chip_select != CPCAP_SECONDARY_CS) {
+			if (register_info_tbl[reg].debug_flags&CPCAP_DEBUG_FLAG_LOG_PRI_W)
+				printk(KERN_INFO "%s Primary register: %d %s %04x\n",
+					__func__, reg, register_info_tbl[reg].name, value);
+		} else {
+			if (register_info_tbl[reg].debug_flags&CPCAP_DEBUG_FLAG_LOG_SEC_W)
+				printk(KERN_INFO "%s Secondary register: %d %s %04x\n",
+					__func__, reg, register_info_tbl[reg].name, value);
+		}
 error:
 		mutex_unlock(&reg_access);
 	}
@@ -433,8 +646,39 @@ int cpcap_regacc_write_secondary(struct cpcap_device *cpcap,
 	return retval;
 }
 
+void cpcap_regacc_dump(struct cpcap_device *cpcap, char *note)
+{
+	unsigned int i;
+	unsigned short reg;
+	char reg_str[10];
+
+	if (debug_flags&(CPCAP_DEBUG_FLAG_DUMP_PRI|CPCAP_DEBUG_FLAG_DUMP_SEC)) {
+		printk(KERN_INFO "Dumping CPCAP registers - %s:\n", note);
+		printk(KERN_INFO "Name       Reg Pri  Sec\n");
+		for (i = 0; i < CPCAP_NUM_REG_CPCAP; i++) {
+			if (register_info_tbl[i].debug_flags&(CPCAP_DEBUG_FLAG_DUMP_PRI|CPCAP_DEBUG_FLAG_DUMP_SEC)) {
+				if (register_info_tbl[i].debug_flags&CPCAP_DEBUG_FLAG_DUMP_PRI)	{
+					cpcap_regacc_read(cpcap, i, &reg);
+					sprintf(reg_str, "%04x", reg);
+				} else {
+					sprintf(reg_str, "n/a ");
+				}
+				if (register_info_tbl[i].debug_flags&CPCAP_DEBUG_FLAG_DUMP_SEC)	{
+					cpcap_regacc_read_secondary(cpcap, i, &reg);
+					sprintf(&reg_str[4], " %04x", reg);
+				} else {
+					sprintf(&reg_str[4], " n/a ");
+				}
+				printk(KERN_INFO "%-10s %03d %s\n",
+					   register_info_tbl[i].name, i, reg_str);
+			}
+		}
+	}
+}
+
 int cpcap_regacc_init(struct cpcap_device *cpcap)
 {
+#if 0
 	unsigned short i;
 	unsigned short mask;
 	int retval = 0;
@@ -453,6 +697,43 @@ int cpcap_regacc_init(struct cpcap_device *cpcap)
 		if (retval)
 			break;
 	}
-
+#endif
+	unsigned short i;
+	unsigned short mask;
+	unsigned short reg;
+	int retval = 0;
+	struct cpcap_platform_data *data;
+	struct spi_device *spi = cpcap->spi;
+	
+	printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
+	data = (struct cpcap_platform_data *)spi->controller_data;
+	printk(KERN_INFO "pICS_%s: step 2...\n",__func__);
+	i = 0;
+	while (i < data->init_len) {
+		printk(KERN_INFO "pICS_%s: step 3...\n",__func__);
+		if ((data->init[i].hw_check == NULL) ||
+			(data->init[i].hw_check(cpcap))) {
+			printk(KERN_INFO "pICS_%s: step 3a...\n",__func__);			
+			reg = data->init[i].reg;
+			printk(KERN_INFO "pICS_%s: step 3b reg=0x%x\n",__func__, reg);			
+			mask = 0xFFFF;
+			mask &= ~(register_info_tbl[reg].constant_mask);
+			printk(KERN_INFO "pICS_%s: step 3c mask=0x%x\n",__func__, mask);			
+			printk(KERN_INFO "pICS_%s: step 3d...\n",__func__);
+			retval = cpcap_regacc_write(cpcap, reg, data->init[i].data, mask);
+			printk(KERN_INFO "pICS_%s: step 3e...\n",__func__);
+			if (retval)
+				break;
+			do {
+				i++;
+			} while ((i < data->init_len) &&
+					 (reg == data->init[i].reg));
+			continue;
+		}
+		i++;
+	}
+	printk(KERN_INFO "pICS_%s: step 4...\n",__func__);
+	update_debug_flags();
+	printk(KERN_INFO "pICS_%s: step 5...\n",__func__);
 	return retval;
 }
