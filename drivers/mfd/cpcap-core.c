@@ -267,24 +267,41 @@ static int __devinit cpcap_probe(struct spi_device *spi)
 	int i;
 	struct cpcap_driver_info *info;
 
+	printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
+
 	cpcap = kzalloc(sizeof(*cpcap), GFP_KERNEL);
 	if (cpcap == NULL)
 		return -ENOMEM;
+	
+	printk(KERN_INFO "pICS_%s: step 1a...\n",__func__);
 
 	cpcap->spi = spi;
+
+	printk(KERN_INFO "pICS_%s: step 1b...\n",__func__);
+
 	data = spi->controller_data;
 
+	printk(KERN_INFO "pICS_%s: step 1c...\n",__func__);
 	misc_cpcap = cpcap;  /* kept for misc device */
+
+	printk(KERN_INFO "pICS_%s: step 1d...\n",__func__);
+
 	spi_set_drvdata(spi, cpcap);
+	printk(KERN_INFO "pICS_%s: step 1e...\n",__func__);
 
 	cpcap->spdif_gpio = data->spdif_gpio;
+	printk(KERN_INFO "pICS_%s: step 1f...\n",__func__);
 
 	retval = cpcap_regacc_init(cpcap);
+	printk(KERN_INFO "pICS_%s: step 1g...\n",__func__);
+
 	if (retval < 0)
 		goto free_mem;
 	retval = cpcap_irq_init(cpcap);
 	if (retval < 0)
 		goto free_cpcap_irq;
+
+	printk(KERN_INFO "pICS_%s: step 2...\n",__func__);
 
 #ifdef CONFIG_BOOTINFO
 	if (bi_powerup_reason() != PU_REASON_CHARGER) {
@@ -296,19 +313,22 @@ static int __devinit cpcap_probe(struct spi_device *spi)
 
 	cpcap_vendor_read(cpcap);
 
+	printk(KERN_INFO "pICS_%s: step 3...\n",__func__);
+
 	for (i = 0; i < ARRAY_SIZE(cpcap_devices); i++)
 		cpcap_devices[i]->dev.platform_data = cpcap;
 
 	retval = misc_register(&cpcap_dev);
 	if (retval < 0)
 		goto free_cpcap_irq;
-#if 0
+
+	printk(KERN_INFO "pICS_%s: step 4...\n",__func__);
 	/* the cpcap usb_detection device is a consumer of the
 	 * vusb regulator */
-	data->regulator_init[CPCAP_VUSB].num_consumer_supplies = 1;
+/*	data->regulator_init[CPCAP_VUSB].num_consumer_supplies = 1;
 	data->regulator_init[CPCAP_VUSB].consumer_supplies =
 		&cpcap_vusb_consumers;
-#endif
+*/
 	/* loop twice becuase cpcap_regulator_probe may refer to other devices
 	 * in this list to handle dependencies between regulators.  Create them
 	 * all and then add them */
@@ -327,6 +347,7 @@ static int __devinit cpcap_probe(struct spi_device *spi)
 		cpcap->regulator_pdev[i] = pdev;
 	}
 
+	printk(KERN_INFO "pICS_%s: step 5...\n",__func__);
 	for (i = 0; i < CPCAP_NUM_REGULATORS; i++)
 		/* vusb has to be added after sw5 so skip it for now,
 		 * it will be added from probe of sw5 */
@@ -334,6 +355,7 @@ static int __devinit cpcap_probe(struct spi_device *spi)
 			continue;
 		platform_device_add(cpcap->regulator_pdev[i]);
 
+	printk(KERN_INFO "pICS_%s: step 6...\n",__func__);
 	platform_add_devices(cpcap_devices, ARRAY_SIZE(cpcap_devices));
 
 	mutex_lock(&cpcap_driver_lock);
@@ -349,6 +371,8 @@ static int __devinit cpcap_probe(struct spi_device *spi)
 		platform_device_register(info->pdev);
 	}
 	mutex_unlock(&cpcap_driver_lock);
+
+	printk(KERN_INFO "pICS_%s: step 7...\n",__func__);
 
 	register_reboot_notifier(&cpcap_reboot_notifier);
 

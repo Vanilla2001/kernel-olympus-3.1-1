@@ -285,7 +285,6 @@ static char oly_unused_pins_p1[] = {
 
 static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
 	/* name		parent		rate		enabled */  
-#if 0
 	{ "twd",        NULL,           62500000,	true}, 
 	{ "usb3",	"clk_m",	26000000,	false},
 	{ "usbd",	"clk_m",	26000000,	true},
@@ -328,13 +327,16 @@ static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
 	{ "sbc2",	"pll_c",	31578947,	true},
 	{ "pll_c_out1",	"pll_c",	80000000,	true},
 	{ "sclk",	"pll_c_out1",	80000000,	true},
+	{ "cop",	"sclk",		80000000,	true},
+	{ "virt_sclk",	"sclk",		80000000,	true},
+	{ "usbd.sclk",	"virt_sclk",	80000000,	true},
+	{ "hclk",	"pll_c_out1",	80000000,	true},
 	{ "i2s1",	"pll_a_out0",	2822400,	false},
 	{ "pll_m",	"clk_m",	600000000,	true},
 	{ "emc",	"pll_m",	600000000,	true},
 	{ "uartc",	"pll_m",	600000000,	true},
 	{ "sbc1",	"pll_m",	100000000,	true},
 	{ "emc",	"pll_m",	100000000,	true},
-#endif
 	{ "pwm",	"clk_32k",	32768,		false},
 	{ "kbc",	"clk_32k",	32768,		true},
 	{ "rtc",	"clk_32k",	32768,		true},
