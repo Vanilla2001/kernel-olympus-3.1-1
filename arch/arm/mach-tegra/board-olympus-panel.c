@@ -37,7 +37,24 @@
 #include "board-olympus.h"
 #include "gpio-names.h"
 
+#define LCD_POWER_GPIO TEGRA_GPIO_PF7
+#define HDMI_POWER_GPIO TEGRA_GPIO_PF6
+#define HDMI_HPD_GPIO TEGRA_GPIO_PN7
+
 /* Display Controller */
+
+static int olympus_panel_enable(void)
+{
+    gpio_set_value(LCD_POWER_GPIO, 1);
+    return 0;
+}
+
+static int olympus_panel_disable(void)
+{
+    gpio_set_value(LCD_POWER_GPIO, 0);
+    return 0;
+}
+
 static struct resource olympus_disp1_resources[] = {
 	{
 		.name	= "irq",
@@ -101,6 +118,13 @@ static struct tegra_dc_mode olympus_panel_modes[] = {
 	},
 };
 
+static struct tegra_dc_out_pin olympus_dc_out_pins[] = {
+	{
+		.name = TEGRA_DC_OUT_PIN_PIXEL_CLOCK,
+		.pol = TEGRA_DC_OUT_PIN_POL_LOW,
+	},
+};
+
 static struct tegra_fb_data olympus_fb_data = {
 	.win		= 0,
 	.xres		= 960,
@@ -122,8 +146,11 @@ static struct tegra_dc_out olympus_disp1_out = {
 	.modes = olympus_panel_modes,
 	.n_modes = ARRAY_SIZE(olympus_panel_modes),
 
-/*	.enable = olympus_panel_enable,
-	.disable = olympus_panel_disable,*/
+	.out_pins = olympus_dc_out_pins,
+	.n_out_pins = ARRAY_SIZE(olympus_dc_out_pins),
+
+	.enable = olympus_panel_enable,
+	.disable = olympus_panel_disable,
 };
 
 static struct tegra_dc_platform_data olympus_disp1_pdata = {
@@ -145,14 +172,14 @@ static struct nvhost_device olympus_disp1_device = {
 
 static int olympus_hdmi_init(void)
 {
-	/*tegra_gpio_enable(STINGRAY_HDMI_5V_EN);
-	gpio_request(STINGRAY_HDMI_5V_EN, "hdmi_5v_en");
-	gpio_direction_output(STINGRAY_HDMI_5V_EN, 1);
+	tegra_gpio_enable(HDMI_POWER_GPIO);
+	gpio_request(HDMI_POWER_GPIO, "hdmi_5v_en");
+	gpio_direction_output(HDMI_POWER_GPIO, 1);
 
-	tegra_gpio_enable(STINGRAY_HDMI_HPD);
-	gpio_request(STINGRAY_HDMI_HPD, "hdmi_hpd");
-	gpio_direction_input(STINGRAY_HDMI_HPD);
-*/
+	tegra_gpio_enable(HDMI_HPD_GPIO);
+	gpio_request(HDMI_HPD_GPIO, "hdmi_hpd");
+	gpio_direction_input(HDMI_HPD_GPIO);
+
 
 	return 0;
 }
@@ -197,8 +224,8 @@ static struct nvmap_platform_carveout olympus_carveouts[] = {
 	[1] = {
 		.name		= "generic-0",
 		.usage_mask	= NVMAP_HEAP_CARVEOUT_GENERIC,
-             .base       = 0,    /* Filled in by star_panel_init() */
-             .size       = 0,    /* Filled in by star_panel_init() */
+             .base       = 0,    /* Filled in by olympus_panel_init() */
+             .size       = 0,    /* Filled in by olympus_panel_init() */
 		.buddy_size	= SZ_32K,
 	},
 };

@@ -40,6 +40,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/platform_data/tegra_usb.h>
 #include <linux/platform_data/tegra_nor.h>
+#include <linux/usb/android_composite.h>
 
 #include <asm/mach/time.h>
 
@@ -65,13 +66,10 @@
 #include "board.h"
 #include "hwrev.h"
 #include "board-olympus.h"
-
-# define BT_RESET 0
-# define BT_SHUTDOWN 1
-
 #include <linux/mmc/host.h>
 
-static u64 tegra_dma_mask = DMA_BIT_MASK(32);
+#define BT_RESET 0
+#define BT_SHUTDOWN 1
 
 static struct plat_serial8250_port debug_uart_platform_data[] = {
 	{
@@ -81,7 +79,7 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
-		.uartclk	= 0, /* filled in by tegra_olympus_init */
+		.uartclk	= 0, /* filled in by init */
 	}, {
 		.flags		= 0
 	}
@@ -94,18 +92,7 @@ static struct platform_device debug_uart = {
 		.platform_data = debug_uart_platform_data,
 	},
 };
-
-static void __init olympus_debug_uart_init(void)
-{
-
-	struct clk *clk;
-	printk(KERN_INFO "pICS_%s",__func__);
-	clk = tegra_get_clock_by_name("uartb");
-	debug_uart_platform_data[0].uartclk = clk_get_rate(clk);
-
-	platform_device_register(&debug_uart);
-}
-
+#if 0
 /* PDA power */
 static struct pda_power_pdata pda_power_pdata = {
 };
@@ -117,24 +104,14 @@ static struct platform_device pda_power_device = {
 		.platform_data  = &pda_power_pdata,
 	},
 };
-
-static void __init olympus_pdapower_init(void)
-{
-	
-	printk(KERN_INFO "pICS_%s: Starting...",__func__);
-	
-	platform_device_register(&pda_power_device);
-
-	printk(KERN_INFO "pICS_%s: Ending...",__func__);
-}
-
+#endif
 /* 
  * SDHCI init
  */
 
 extern struct tegra_nand_platform tegra_nand_plat;
 
-static struct tegra_sdhci_platform_data tegra_sdhci_platform[] = {
+static struct tegra_sdhci_platform_data olympus_sdhci_platform[] = {
 	[0] = { /* SDHCI 1 - WIFI*/
 		.mmc_data = {
 			.built_in = 1,
@@ -168,102 +145,6 @@ static struct tegra_sdhci_platform_data tegra_sdhci_platform[] = {
 		.max_clk_limit = 50000000,
 	},
 };
-static struct resource tegra_sdhci_resources[][2] = {
-	[0] = {
-		[0] = {
-			.start = TEGRA_SDMMC1_BASE,
-			.end = TEGRA_SDMMC1_BASE + TEGRA_SDMMC1_SIZE - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = INT_SDMMC1,
-			.end = INT_SDMMC1,
-			.flags = IORESOURCE_IRQ,
-		},
-	},
-	[1] = {
-		[0] = {
-			.start = TEGRA_SDMMC2_BASE,
-			.end = TEGRA_SDMMC2_BASE + TEGRA_SDMMC2_SIZE - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = INT_SDMMC2,
-			.end = INT_SDMMC2,
-			.flags = IORESOURCE_IRQ,
-		},
-	},
-	[2] = {
-		[0] = {
-			.start = TEGRA_SDMMC3_BASE,
-			.end = TEGRA_SDMMC3_BASE + TEGRA_SDMMC3_SIZE - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = INT_SDMMC3,
-			.end = INT_SDMMC3,
-			.flags = IORESOURCE_IRQ,
-		},
-	},
-	[3] = {
-		[0] = {
-			.start = TEGRA_SDMMC4_BASE,
-			.end = TEGRA_SDMMC4_BASE + TEGRA_SDMMC4_SIZE - 1,
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.start = INT_SDMMC4,
-			.end = INT_SDMMC4,
-			.flags = IORESOURCE_IRQ,
-		},
-	},
-};
-struct platform_device tegra_sdhci_devices[] = {
-	[0] = {
-		.id = 0,
-		.name = "tegra-sdhci",
-		.resource = tegra_sdhci_resources[0],
-		.num_resources = ARRAY_SIZE(tegra_sdhci_resources[0]),
-		.dev = {
-			.platform_data = &tegra_sdhci_platform[0],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-	[1] = {
-		.id = 1,
-		.name = "tegra-sdhci",
-		.resource = tegra_sdhci_resources[1],
-		.num_resources = ARRAY_SIZE(tegra_sdhci_resources[1]),
-		.dev = {
-			.platform_data = &tegra_sdhci_platform[1],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-	[2] = {
-		.id = 2,
-		.name = "tegra-sdhci",
-		.resource = tegra_sdhci_resources[2],
-		.num_resources = ARRAY_SIZE(tegra_sdhci_resources[2]),
-		.dev = {
-			.platform_data = &tegra_sdhci_platform[2],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-	[3] = {
-		.id = 3,
-		.name = "tegra-sdhci",
-		.resource = tegra_sdhci_resources[3],
-		.num_resources = ARRAY_SIZE(tegra_sdhci_resources[3]),
-		.dev = {
-			.platform_data = &tegra_sdhci_platform[3],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-};
 
 static const char tegra_sdio_ext_reg_str[] = "vsdio_ext";
 int tegra_sdhci_boot_device = -1;
@@ -274,10 +155,14 @@ static void __init olympus_sdhci_init(void)
 
 	printk(KERN_INFO "pICS_%s: Starting...",__func__);
 	
+	tegra_sdhci_device1.dev.platform_data = &olympus_sdhci_platform[0];
+	tegra_sdhci_device3.dev.platform_data = &olympus_sdhci_platform[2];
+	tegra_sdhci_device4.dev.platform_data = &olympus_sdhci_platform[3];
+
 	/* Olympus P3+, Etna P2+, Etna S3+, Daytona and Sunfire
 	   can handle shutting down the external SD card. */
 	if ( (HWREV_TYPE_IS_FINAL(system_rev) || (HWREV_TYPE_IS_PORTABLE(system_rev) && (HWREV_REV(system_rev) >= HWREV_REV_3)))) 			{
-		tegra_sdhci_platform[2].regulator_str = (char *)tegra_sdio_ext_reg_str;
+		olympus_sdhci_platform[2].regulator_str = (char *)tegra_sdio_ext_reg_str;
 		}
 
 		/* check if an "MBR" partition was parsed from the tegra partition
@@ -285,118 +170,136 @@ static void __init olympus_sdhci_init(void)
 	for (i=0; i<tegra_nand_plat.nr_parts; i++) {
 		if (strcmp("mbr", tegra_nand_plat.parts[i].name))
 			continue;
-		tegra_sdhci_platform[3].offset = tegra_nand_plat.parts[i].offset;
+		olympus_sdhci_platform[3].offset = tegra_nand_plat.parts[i].offset;
 		printk(KERN_INFO "pICS_%s: tegra_sdhci_boot_device plat->offset = 0x%llx ",__func__, tegra_nand_plat.parts[i].offset);		
 		}
 
-
-	platform_device_register(&tegra_sdhci_devices[3]);
-	platform_device_register(&tegra_sdhci_devices[0]);
-	platform_device_register(&tegra_sdhci_devices[2]);
+	platform_device_register(&tegra_sdhci_device4); 
+	platform_device_register(&tegra_sdhci_device1);
+	platform_device_register(&tegra_sdhci_device3);
 
 	printk(KERN_INFO "pICS_%s: Ending...",__func__);
 }
 
-
-struct plat_serial8250_port tegra_uart_platform[] = {
-	{
-		.membase = IO_ADDRESS(TEGRA_UARTA_BASE),
-		.mapbase = TEGRA_UARTA_BASE,
-		.irq = INT_UARTA,
-	},
-	{
-		.membase = IO_ADDRESS(TEGRA_UARTB_BASE),
-		.mapbase = TEGRA_UARTB_BASE,
-		.irq = INT_UARTB,
-
-	},
-	{
-		.membase = IO_ADDRESS(TEGRA_UARTC_BASE),
-		.mapbase = TEGRA_UARTC_BASE,
-		.irq = INT_UARTC,
-
-	},
-	{
-		.membase = IO_ADDRESS(TEGRA_UARTD_BASE),
-		.mapbase = TEGRA_UARTD_BASE,
-		.irq = INT_UARTD,
-
-	},
-	{
-		.membase = IO_ADDRESS(TEGRA_UARTE_BASE),
-		.mapbase = TEGRA_UARTE_BASE,
-		.irq = INT_UARTE,
+#ifdef CONFIG_LBEE9QMB_RFKILL
+static struct lbee9qmb_platform_data lbee9qmb_platform;
+static struct platform_device lbee9qmb_device = {
+	.name = "lbee9qmb-rfkill",
+	.dev = {
+		.platform_data = &lbee9qmb_platform,
 	},
 };
-static struct platform_device tegra_uart[] = {
-	{
-		.name = "tegra_uart",
-		.id = 0,
-		.dev = {
-			.platform_data = &tegra_uart_platform[0],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-	{
-		.name = "tegra_uart",
-		.id = 1,
-		.dev = {
-			.platform_data = &tegra_uart_platform[1],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-	{
-		.name = "tegra_uart",
-		.id = 2,
-		.dev = {
-			.platform_data = &tegra_uart_platform[2],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-	{
-		.name = "tegra_uart",
-		.id = 3,
-		.dev = {
-			.platform_data = &tegra_uart_platform[3],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-	{
-		.name = "tegra_uart",
-		.id = 4,
-		.dev = {
-			.platform_data = &tegra_uart_platform[4],
-			.coherent_dma_mask = DMA_BIT_MASK(32),
-			.dma_mask = &tegra_dma_mask,
-		},
-	},
-
-};
-static void __init olympus_hsuart_init(void)
+static noinline void __init olympus_rfkill_init(void)
 {
-	printk(KERN_INFO "pICS_%s: Starting...",__func__);
 
-	if (platform_device_register(&tegra_uart[0])) 
-			pr_err("%s: failed to register %s.%d\n",
-			       __func__, tegra_uart[0].name, tegra_uart[0].id);
-	if (platform_device_register(&tegra_uart[2])) 
-			pr_err("%s: failed to register %s.%d\n",
-			       __func__, tegra_uart[2].name, tegra_uart[2].id);
-	if (platform_device_register(&tegra_uart[3])) 
-			pr_err("%s: failed to register %s.%d\n",
-			       __func__, tegra_uart[3].name, tegra_uart[3].id);
-	if (platform_device_register(&tegra_uart[4])) 
-			pr_err("%s: failed to register %s.%d\n",
-			       __func__, tegra_uart[4].name, tegra_uart[4].id);
+	lbee9qmb_platform.delay=5;
+	lbee9qmb_platform.gpio_pwr=-1;
+	lbee9qmb_platform.gpio_reset = 160;
 
-	printk(KERN_INFO "pICS_%s: Ending...",__func__);
+	if (platform_device_register(&lbee9qmb_device))
+					pr_err("%s: registration failed\n", __func__);
+				return;
+}
+#else
+static void olympus_rfkill_init(void) { }
+#endif
 
+static void tegra_system_power_off(void)
+{
+	struct regulator *regulator = regulator_get(NULL, "soc_main");
+
+	if (!IS_ERR(regulator)) {
+		int rc;
+		regulator_enable(regulator);
+		rc = regulator_disable(regulator);
+		pr_err("%s: regulator_disable returned %d\n", __func__, rc);
+	} else {
+		pr_err("%s: regulator_get returned %ld\n", __func__,
+		       PTR_ERR(regulator));
+	}
+	local_irq_disable();
+	while (1) {
+		dsb();
+		__asm__ ("wfi");
+	}
+}
+
+static struct resource tegra_grhost_resources[] = {
+	[0] = {
+		.name = "host1x",
+		.start = TEGRA_HOST1X_BASE,
+		.end = TEGRA_HOST1X_BASE + TEGRA_HOST1X_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.name = "display",
+		.start = TEGRA_DISPLAY_BASE,
+		.end = TEGRA_DISPLAY_BASE + TEGRA_DISPLAY_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
+		.name = "display2",
+		.start = TEGRA_DISPLAY2_BASE,
+		.end = TEGRA_DISPLAY2_BASE + TEGRA_DISPLAY2_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[3] = {
+		.name = "vi",
+		.start = TEGRA_VI_BASE,
+		.end = TEGRA_VI_BASE + TEGRA_VI_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[4] = {
+		.name = "isp",
+		.start = TEGRA_ISP_BASE,
+		.end = TEGRA_ISP_BASE + TEGRA_ISP_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[5] = {
+		.name = "mpe",
+		.start = TEGRA_MPE_BASE,
+		.end = TEGRA_MPE_BASE + TEGRA_MPE_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[6] = {
+		.name = "syncpt_thresh",
+		.start = INT_SYNCPT_THRESH_BASE,
+		.end = INT_SYNCPT_THRESH_BASE + INT_SYNCPT_THRESH_NR - 1,
+		.flags = IORESOURCE_IRQ,
+	},
+	[7] = {
+		.name = "host1x_mpcore_general",
+		.start = INT_HOST1X_MPCORE_GENERAL,
+		.end = INT_HOST1X_MPCORE_GENERAL,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
+static struct platform_device tegra_grhost_device = {
+	.name = "tegra_grhost",
+	.id = -1,
+	.resource = tegra_grhost_resources,
+	.num_resources = ARRAY_SIZE(tegra_grhost_resources),
+};
+#if 0
+/* OTG gadget device */
+static u64 tegra_otg_dmamask = DMA_BIT_MASK(32);
+
+
+static struct resource tegra_otg_resources[] = {
+	[0] = {
+		.start  = TEGRA_USB_BASE,
+		.end    = TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = INT_USB,
+		.end    = INT_USB,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+/*
 static struct tegra_usb_platform_data tegra_udc_pdata = {
 	.port_otg = false,
 	.has_hostpc = false,
@@ -419,7 +322,7 @@ static struct tegra_usb_platform_data tegra_udc_pdata = {
 		.xcvr_setup_offset = 0,
 		.xcvr_use_fuses = 1,
 	},
-};
+};*/
 
 static struct tegra_usb_platform_data tegra_ehci1_utmi_pdata = {
 	.port_otg = false,
@@ -449,31 +352,87 @@ static struct tegra_usb_otg_data tegra_otg_pdata = {
 	.ehci_pdata = &tegra_ehci1_utmi_pdata,
 };
 
+static struct platform_device tegra_otg = {
+	.name = "fsl-tegra-udc",
+	.id   = -1,
+	.dev  = {
+		.dma_mask		= &tegra_otg_dmamask,
+		.coherent_dma_mask	= 0xffffffff,
+		.platform_data = &tegra_otg_pdata,
+	},
+	.resource = tegra_otg_resources,
+	.num_resources = ARRAY_SIZE(tegra_otg_resources),
+};
 
-static void __init olympus_usb_init(void)
-{
-	printk(KERN_INFO "pICS_%s: Starting...",__func__);
+static char *usb_functions[] = { "usb_mass_storage" };
+static char *usb_functions_adb[] = { "usb_mass_storage", "adb" };
 
-	tegra_udc_device.dev.platform_data = &tegra_udc_pdata;
+static struct android_usb_product usb_products[] = {
+	{
+		.product_id     = 0xDEAD,
+		.num_functions  = ARRAY_SIZE(usb_functions),
+		.functions      = usb_functions,
+	},
+	{
+		.product_id     = 0xBEEF,
+		.num_functions  = ARRAY_SIZE(usb_functions_adb),
+		.functions      = usb_functions_adb,
+	},
+};
 
-	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
-	platform_device_register(&tegra_otg_device);
+/* standard android USB platform data */
+static struct android_usb_platform_data andusb_plat = {
+	.vendor_id                      = 0x18d1,
+	.product_id                     = 0x0002,
+	.manufacturer_name      = "Google",
+	.product_name           = "Olympus!",
+	.serial_number          = "0000",
+	.num_products = ARRAY_SIZE(usb_products),
+	.products = usb_products,
+	.num_functions = ARRAY_SIZE(usb_functions_adb),
+	.functions = usb_functions_adb,
+};
 
 
-/*	platform_device_register(&tegra_otg);
+static struct platform_device androidusb_device = {
+	.name   = "android_usb",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = &andusb_plat,
+	},
+};
 
-	tegra_ehci_platform[0].otg_mode = 1;
+static u64 tegra_udc_dma_mask = DMA_BIT_MASK(32);
 
-	tegra_ehci_platform[2].otg_mode = 0;
-	tegra_ehci_platform[2].fast_wakeup = 1;
+static struct fsl_usb2_platform_data tegra_udc_platform = {
+	.phy_mode = FSL_USB2_PHY_UTMI,
+	.operating_mode = FSL_USB2_DR_DEVICE,
+};
+static struct resource tegra_udc_resources[] = {
+	[0] = {
+		.start = TEGRA_USB_BASE,
+		.end = TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = INT_USB,
+		.end = INT_USB,
+		.flags = IORESOURCE_IRQ,
+	},
+};
 
-	platform_device_register(&tegra_ehci[0]);
-	platform_device_register(&tegra_ehci[2]);*/
+struct platform_device tegra_udc_dev = {
+	.name = "tegra-udc",
+	.id = 0,
+	.dev = {
+		.platform_data = &tegra_udc_platform,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.dma_mask = &tegra_udc_dma_mask,
+	},
+	.resource = tegra_udc_resources,
+	.num_resources = ARRAY_SIZE(tegra_udc_resources),
+};
 
-	printk(KERN_INFO "pICS_%s: Ending...",__func__);
-
-}
-#if 0
 static const u32 olympus_keymap[] = {
 	KEY(0, 0, KEY_VOLUMEUP),
 	KEY(0, 1, KEY_VOLUMEDOWN),
@@ -493,16 +452,39 @@ static const struct matrix_keymap_data olympus_keymap_data = {
 
 struct tegra_kbc_platform_data tegra_kbc_platform;
 
+static struct resource tegra_kbc_resources[] = {
+	[0] = {
+		.start = TEGRA_KBC_BASE,
+		.end = TEGRA_KBC_BASE + TEGRA_KBC_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = INT_KBC,
+		.end = INT_KBC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device tegra_kbc_dev = {
+	.name = "tegra-kbc",
+	.id = -1,
+	.dev = {
+		.platform_data = &tegra_kbc_platform,
+	},
+	.resource = tegra_kbc_resources,
+	.num_resources = ARRAY_SIZE(tegra_kbc_resources),
+};
+#endif
 static noinline void __init olympus_kbc_init(void)
 {
-
+#if 0
 	tegra_kbc_platform.wake_cnt = 5; /* 0:wake on any key >1:wake on wake_cfg */
 
 	/* debounce time is reported from ODM in terms of clock ticks. */
 	tegra_kbc_platform.debounce_cnt = 10;
 
 	/* repeat cycle is reported from ODM in milliseconds,
-	 * but needs to be specified in 32KHz ticks */
+	* but needs to be specified in 32KHz ticks */
 	tegra_kbc_platform.repeat_cnt = 1024;
 
 	tegra_kbc_platform.pin_cfg[0].num = 0;
@@ -519,8 +501,8 @@ static noinline void __init olympus_kbc_init(void)
 	tegra_kbc_platform.pin_cfg[18].en = true;
 
 	tegra_kbc_platform.keymap_data = &olympus_keymap_data;
-/* ICS check if scancodes are needed
-	tegra_kbc_platform.keymap[0]=115;
+
+/*	tegra_kbc_platform.keymap[0]=115;
 	tegra_kbc_platform.keymap[1]=114;
 	tegra_kbc_platform.keymap[2]=152;
 	tegra_kbc_platform.keymap[16]=211;
@@ -528,303 +510,33 @@ static noinline void __init olympus_kbc_init(void)
 	tegra_kbc_platform.keymap[18]=217;
 	tegra_kbc_platform.keymap[32]=139;
 	tegra_kbc_platform.keymap[33]=102;
-	tegra_kbc_platform.keymap[34]=158;
-*/
-}
+	tegra_kbc_platform.keymap[34]=158;*/
 #endif
-#ifdef CONFIG_LBEE9QMB_RFKILL
-static struct lbee9qmb_platform_data lbee9qmb_platform;
-static struct platform_device lbee9qmb_device = {
-	.name = "lbee9qmb-rfkill",
-	.dev = {
-		.platform_data = &lbee9qmb_platform,
-	},
-};
-static noinline void __init olympus_rfkill_init(void)
-{
-
-	lbee9qmb_platform.delay=5;
-	lbee9qmb_platform.gpio_pwr=-1;
-	lbee9qmb_platform.gpio_reset = 160;
-
-	if (platform_device_register(&lbee9qmb_device))
-					pr_err("%s: registration failed\n", __func__);
-				return;
-}
-#else
-static void olympus_rfkill_init(void) { }
-#endif
-
-static struct tegra_spi_platform_data tegra_spi_platform[] = {
-	[0] = {
-		/*.is_slink = true,*/
-	},
-	[1] = {
-		/*.is_slink = true,*/
-	},
-	[2] = {
-		/*.is_slink = true,*/
-	},
-	[3] = {
-		/*.is_slink = true,*/
-	},
-	[4] = {
-		/*.is_slink = false,*/
-	},
-};
-static struct platform_device tegra_spi_devices[] = {
-	[0] = {
-		.name = "tegra_spi_slave",
-		.id = 0,
-		.dev = {
-			.platform_data = &tegra_spi_platform[0],
-		},
-	},
-	[1] = {
-		.name = "tegra_spi",
-		.id = 1,
-		.dev = {
-			.platform_data = &tegra_spi_platform[1],
-		},
-	},
-	[2] = {
-		.name = "tegra_spi",
-		.id = 2,
-		.dev = {
-			.platform_data = &tegra_spi_platform[2],
-		},
-	},
-	[3] = {
-		.name = "tegra_spi",
-		.id = 3,
-		.dev = {
-			.platform_data = &tegra_spi_platform[3],
-		},
-	},
-	[4] = {
-		.name = "tegra_spi",
-		.id = 4,
-		.dev = {
-			.platform_data = &tegra_spi_platform[4],
-		},
-	},
-};
-static void __init olympus_spi_init(void)
-{
-
-
-	int rc;
-
-	rc = platform_device_register(&tegra_spi_devices[0]);
-
-	if (rc) {
-		pr_err("%s: registration of %s.%d failed\n",
-		       __func__, tegra_spi_devices[0].name, tegra_spi_devices[0].id);
-	}
-
-	rc = platform_device_register(&tegra_spi_devices[1]);
-	if (rc) {
-		pr_err("%s: registration of %s.%d failed\n",
-		       __func__, tegra_spi_devices[1].name, tegra_spi_devices[1].id);
-	}
-
-	rc = platform_device_register(&tegra_spi_devices[2]);
-	if (rc) {
-		pr_err("%s: registration of %s.%d failed\n",
-		       __func__, tegra_spi_devices[2].name, tegra_spi_devices[2].id);
-	}
-
-	printk(KERN_INFO "pICS_%s: Ending...",__func__);
 }
 
-static struct tegra_i2c_platform_data tegra_i2c_platform[] = {
-	[0] = {
-		.adapter_nr = 0,
-		.bus_count = 1,
-		.bus_mux = { 0, 0 },
-		.bus_clk_rate = { 100000, 0 }, /* default to 100KHz */
-		.is_dvc = false,
-	},
-	[1] = {
-		.adapter_nr = 1,
-		.bus_count = 1,
-		.bus_mux = { 0, 0 },
-		.bus_clk_rate = { 100000, 0 },
-		.is_dvc = false,
-	},
-	[2] = {
-		.adapter_nr = 2,
-		.bus_count = 1,
-		.bus_mux = { 0, 0 },
-		.bus_clk_rate = { 100000, 0 },
-		.is_dvc = false,
-	},
-	[3] = {
-		.adapter_nr = 3,
-		.bus_count = 1,
-		.bus_mux = { 0, 0 },
-		.bus_clk_rate = { 100000, 0 },
-		.is_dvc = true,
-	},
+static struct platform_device *olympus_devices[] __initdata = {
+	&debug_uart,
+/*	&tegra_otg,
+	&androidusb_device,
+	&pda_power_device,
+	&tegra_uarta_device,*/
+	&tegra_uartc_device,
+	&tegra_uartd_device,
+/*	&tegra_uarte_device,*/
+	&tegra_i2c_device1,
+	&tegra_i2c_device2,
+	&tegra_i2c_device3,
+	&tegra_i2c_device4,
+	&tegra_spi_device1,
+	&tegra_spi_device2,
+	&tegra_spi_device3,
+	&tegra_spi_device4,
+	&tegra_w1_device,
+	&tegra_gart_device,
+	&tegra_grhost_device,
+/*	&tegra_udc_dev,*/
+/*	&tegra_kbc_dev,*/
 };
-static struct platform_device tegra_i2c_devices[] = {
-	[0] = {
-		.name = "tegra_i2c",
-		.id = 0,
-		.dev = {
-			.platform_data = &tegra_i2c_platform[0],
-		},
-	},
-	[1] = {
-		.name = "tegra_i2c",
-		.id = 1,
-		.dev = {
-			.platform_data = &tegra_i2c_platform[1],
-		},
-	},
-	[2] = {
-		.name = "tegra_i2c",
-		.id = 2,
-		.dev = {
-			.platform_data = &tegra_i2c_platform[2],
-		},
-	},
-	[3] = {
-		.name = "tegra_i2c",
-		.id = 3,
-		.dev = {
-			.platform_data = &tegra_i2c_platform[3],
-		},
-	},
-};
-static noinline void __init olympus_i2c_init(void)
-{
-	tegra_i2c_platform[0].bus_clk_rate[0] = 400*1000;
-	tegra_i2c_platform[1].bus_clk_rate[0] = 400*1000;
-	tegra_i2c_platform[2].bus_clk_rate[0] = 400*1000;
-
-	if (platform_device_register(&tegra_i2c_devices[0]))
-		pr_err("%s: failed to register %s.%d\n",
-			       __func__, tegra_i2c_devices[0].name, tegra_i2c_devices[0].id);
-	if (platform_device_register(&tegra_i2c_devices[1]))
-		pr_err("%s: failed to register %s.%d\n",
-			       __func__, tegra_i2c_devices[0].name, tegra_i2c_devices[0].id);
-	if (platform_device_register(&tegra_i2c_devices[2]))
-		pr_err("%s: failed to register %s.%d\n",
-			       __func__, tegra_i2c_devices[0].name, tegra_i2c_devices[0].id);
-	if (platform_device_register(&tegra_i2c_devices[3]))
-		pr_err("%s: failed to register %s.%d\n",
-			       __func__, tegra_i2c_devices[0].name, tegra_i2c_devices[0].id);
-}
-
-static void __init olympus_w1_init(void)
-{
-
-	/*tegra_w1_platform.pinmux = 1;*/
-	if (platform_device_register(&tegra_w1_device)) {
-		pr_err("%s: failed to register %s.%d\n",
-		       __func__, tegra_w1_device.name, tegra_w1_device.id);
-	}
-}
-
-static void tegra_system_power_off(void)
-{
-	struct regulator *regulator = regulator_get(NULL, "soc_main");
-
-	if (!IS_ERR(regulator)) {
-		int rc;
-		regulator_enable(regulator);
-		rc = regulator_disable(regulator);
-		pr_err("%s: regulator_disable returned %d\n", __func__, rc);
-	} else {
-		pr_err("%s: regulator_get returned %ld\n", __func__,
-		       PTR_ERR(regulator));
-	}
-	local_irq_disable();
-	while (1) {
-		dsb();
-		__asm__ ("wfi");
-	}
-}
-#if 0
-static struct tegra_suspend_platform_data tegra_suspend_platform = {
-	.cpu_timer = 2000,
-};
-
-
-static void __init olympus_suspend_init(void)
-{
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-	const int wakepad_irq[] = {
-		gpio_to_irq(TEGRA_GPIO_PO5), gpio_to_irq(TEGRA_GPIO_PV3),
-		gpio_to_irq(TEGRA_GPIO_PL1), gpio_to_irq(TEGRA_GPIO_PB6),
-		gpio_to_irq(TEGRA_GPIO_PN7), gpio_to_irq(TEGRA_GPIO_PA0),
-		gpio_to_irq(TEGRA_GPIO_PU5), gpio_to_irq(TEGRA_GPIO_PU6),
-		gpio_to_irq(TEGRA_GPIO_PC7), gpio_to_irq(TEGRA_GPIO_PS2),
-		gpio_to_irq(TEGRA_GPIO_PAA1), gpio_to_irq(TEGRA_GPIO_PW3),
-		gpio_to_irq(TEGRA_GPIO_PW2), gpio_to_irq(TEGRA_GPIO_PY6),
-		gpio_to_irq(TEGRA_GPIO_PV6), gpio_to_irq(TEGRA_GPIO_PJ7),
-		INT_RTC, INT_KBC, INT_EXTERNAL_PMU,
-		/* FIXME: USB wake pad interrupt mapping may be wrong */
-		INT_USB, INT_USB3, INT_USB, INT_USB3,
-		gpio_to_irq(TEGRA_GPIO_PI5), gpio_to_irq(TEGRA_GPIO_PV2),
-		gpio_to_irq(TEGRA_GPIO_PS4), gpio_to_irq(TEGRA_GPIO_PS5),
-		gpio_to_irq(TEGRA_GPIO_PS0), gpio_to_irq(TEGRA_GPIO_PQ6),
-		gpio_to_irq(TEGRA_GPIO_PQ7), gpio_to_irq(TEGRA_GPIO_PN2),
-	};
-#endif /* CONFIG_ARCH_TEGRA_2x_SOC */
-
-	/*tegra_suspend_platform.dram_suspend = true;
-	tegra_suspend_platform.core_off = true;*/
-	tegra_suspend_platform.cpu_timer = 800;
-	tegra_suspend_platform.cpu_off_timer = 600;
-	tegra_suspend_platform.core_timer = 1842;
-	tegra_suspend_platform.core_off_timer = 31;
-/*	tegra_suspend_platform.separate_req = 1;*/
-	tegra_suspend_platform.corereq_high = 1;
-	tegra_suspend_platform.sysclkreq_high = 1;
-/*	tegra_suspend_platform.wake_enb = 0;
-	tegra_suspend_platform.wake_low = 0;
-	tegra_suspend_platform.wake_high = 0;
-	tegra_suspend_platform.wake_any = 0;*/
-	
-	enable_irq_wake(wakepad_irq[2]);
-/*	tegra_suspend_platform.wake_enb = 4;
-	tegra_suspend_platform.wake_low = 4;*/
-
-	enable_irq_wake(wakepad_irq[5]);
-/*	tegra_suspend_platform.wake_enb = 36;
-	tegra_suspend_platform.wake_high = 32;*/
-
-	enable_irq_wake(wakepad_irq[6]);
-/*	tegra_suspend_platform.wake_enb = 100;
-	tegra_suspend_platform.wake_any = 64;*/
-
-
-	enable_irq_wake(wakepad_irq[7]);
-/*	tegra_suspend_platform.wake_enb = 228;
-	tegra_suspend_platform.wake_any = 192;*/
-
-
-	enable_irq_wake(wakepad_irq[17]);
-/*	tegra_suspend_platform.wake_enb = 131300;
-	tegra_suspend_platform.wake_high = 131104;*/
-
-
-	enable_irq_wake(wakepad_irq[18]);
-/*	tegra_suspend_platform.wake_enb = 393444;
-	tegra_suspend_platform.wake_high = 393248;*/
-
-	enable_irq_wake(wakepad_irq[24]);
-/*	tegra_suspend_platform.wake_enb = 17170660;
-	tegra_suspend_platform.wake_any = 16777408;*/
-
-	printk(KERN_INFO "pICS_%s: tegra_init_suspend(tegra_suspend_platform)",__func__);
-
-	tegra_init_suspend(&tegra_suspend_platform);
-	/*tegra_init_idle(&tegra_suspend_platform);*/
-}
-#endif
 
 static int tegra_reboot_notify(struct notifier_block *nb,
 				unsigned long event, void *data)
@@ -857,32 +569,21 @@ static void olympus_reboot_init(void)
 
 void __init olympus_devices_init()
 {
-	printk(KERN_INFO "pICS_%s: olympus_debug_uart_init();\n",__func__);
-	olympus_debug_uart_init();
-	printk(KERN_INFO "pICS_%s: olympus_ehci_init();\n",__func__);
-	olympus_usb_init();
-	printk(KERN_INFO "pICS_%s: olympus_hsuart_init();\n",__func__);
-	olympus_hsuart_init();
+	struct clk *clk;
+
 	printk(KERN_INFO "pICS_%s: olympus_sdhci_init();\n",__func__);
 	olympus_sdhci_init();
 	printk(KERN_INFO "pICS_%s: olympus_rfkill_init();\n",__func__);
 	olympus_rfkill_init();
-	printk(KERN_INFO "pICS_%s: olympus_kbc_init();\n",__func__);
-/*	olympus_kbc_init();*/
-	printk(KERN_INFO "pICS_%s: olympus_i2c_init();\n",__func__);
-	olympus_i2c_init();
-	printk(KERN_INFO "pICS_%s: olympus_spi_init();\n",__func__);
-	olympus_spi_init();
-	printk(KERN_INFO "pICS_%s: olympus_w1_init();\n",__func__);
-	olympus_w1_init();
-	if (0==1) {	
-	printk(KERN_INFO "pICS_%s: olympus_pdapower_init();\n",__func__);
-	olympus_pdapower_init();
-	}
-/*	platform_add_devices(olympus_devices, ARRAY_SIZE(olympus_devices));*/
+	olympus_kbc_init();
+
+	clk = tegra_get_clock_by_name("uartb");
+	debug_uart_platform_data[0].uartclk = clk_get_rate(clk);
+
+	platform_add_devices(olympus_devices, ARRAY_SIZE(olympus_devices));
 
 	pm_power_off = tegra_system_power_off;
-	/*tegra_setup_suspend();*/
+	
 	olympus_reboot_init();
 }
 

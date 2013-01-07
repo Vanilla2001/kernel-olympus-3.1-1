@@ -34,11 +34,17 @@
 #include "gpio-names.h"
 #include "board.h"
 #include "hwrev.h"
+#include "pm.h"
+#include "fuse.h"
+#include "wakeups-t2.h"
 
 #include "board-olympus.h"
 
 #define PWRUP_FACTORY_CABLE         0x00000020 /* Bit 5  */
 #define PWRUP_INVALID               0xFFFFFFFF
+
+#define PMC_CTRL		0x0
+#define PMC_CTRL_INTR_LOW	(1 << 17)
 
 extern void arch_reset(char mode, const char *cmd);
 static int disable_rtc_alarms(struct device *dev, void *cnt);
@@ -233,6 +239,8 @@ static int cpcap_validity_probe(struct platform_device *pdev)
 {
 	int err;
 
+	printk(KERN_INFO "pICS_%s: testing...\n",__func__);
+
 	if (pdev->dev.platform_data == NULL) {
 		dev_err(&pdev->dev, "no platform_data\n");
 		return -EINVAL;
@@ -246,13 +254,9 @@ static int cpcap_validity_probe(struct platform_device *pdev)
 
 	register_reboot_notifier(&validity_reboot_notifier);
 
-	/* CORE_PWR_REQ is only properly connected on P1 hardware and later */
-/*	if (stingray_revision() >= STINGRAY_REVISION_P1) {
-		err = cpcap_uc_start(cpcap_di, CPCAP_MACRO_14);
-		dev_info(&pdev->dev, "Started macro 14: %d\n", err);
-	} else
-		dev_info(&pdev->dev, "Not starting macro 14 (no hw support)\n");
-*/
+	err = cpcap_uc_start(cpcap_di, CPCAP_BANK_PRIMARY, CPCAP_MACRO_14);
+	dev_info(&pdev->dev, "Started macro 14: %d\n", err);
+
 	/* Enable workaround to allow soft resets to work */
 	cpcap_regacc_write(cpcap_di, CPCAP_REG_PGC,
 			   CPCAP_BIT_SYS_RST_MODE, CPCAP_BIT_SYS_RST_MODE);
@@ -1212,17 +1216,65 @@ static struct platform_device cpcap_reg_virt_sw5 =
 };
 #endif
 
+static struct tegra_suspend_platform_data olympus_suspend_data = {
+	.cpu_timer 	= 800,
+	.cpu_off_timer	= 600,
+	.suspend_mode	= TEGRA_SUSPEND_LP0,
+	.core_timer	= 1842,
+	.core_off_timer = 31,
+	.corereq_high	= true,
+	.sysclkreq_high	= true,
+	.wake_enb	= TEGRA_WAKE_GPIO_PL1 \
+					| TEGRA_WAKE_GPIO_PA0 \
+					| TEGRA_WAKE_GPIO_PU5 \
+					| TEGRA_WAKE_GPIO_PU6 \
+					| TEGRA_WAKE_KBC_EVENT \
+					| TEGRA_WAKE_PWR_INT \
+					| TEGRA_WAKE_GPIO_PV2,
+	.wake_high	= TEGRA_WAKE_GPIO_PA0 \
+					| TEGRA_WAKE_KBC_EVENT \
+					| TEGRA_WAKE_PWR_INT,
+	.wake_low	= TEGRA_WAKE_GPIO_PL1,
+
+	.wake_any	= TEGRA_WAKE_GPIO_PU6 \
+					| TEGRA_WAKE_GPIO_PU5 \
+					| TEGRA_WAKE_GPIO_PV2,
+
+	tegra_wake_to_irq()
+};
+
 void __init olympus_power_init(void)
 {
 	unsigned int i;
-	unsigned long pmc_cntrl_0;
 	int error;
 
-	printk(KERN_INFO "pICS_%s: system_rev = 0x%x\n",__func__, system_rev);
-	printk(KERN_INFO "pICS_%s: HWREV_TYPE_IS_FINAL = %s\n",__func__, ((HWREV_TYPE_IS_FINAL(system_rev))?"true":"false"));
-	printk(KERN_INFO "pICS_%s: HWREV_TYPE_IS_PORTABLE = %s\n",__func__, ((HWREV_TYPE_IS_PORTABLE(system_rev))?"true":"false"));
-	printk(KERN_INFO "pICS_%s: HWREV = 0x%x\n",__func__, HWREV_REV(system_rev));
+	unsigned long pmc_ctrl;
+	unsigned long minor;
 
+	void __iomem *pmc = IO_ADDRESS(TEGRA_PMC_BASE);
+	void __iomem *chip_id = IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804;
+
+
+
+	minor = (readl(chip_id) >> 16) & 0xf;
+	/* A03 (but not A03p) chips do not support LP0 */
+	if (minor == 3 && !(tegra_spare_fuse(18) || tegra_spare_fuse(19)))
+		tegra_suspend_platform.suspend_mode = TEGRA_SUSPEND_LP1;
+
+	/* configure the power management controller to trigger PMU
+	 * interrupts when low */
+	pmc_ctrl = readl(pmc + PMC_CTRL);
+	writel(pmc_ctrl | PMC_CTRL_INTR_LOW, pmc + PMC_CTRL);
+
+	
+
+	/* Enable CORE_PWR_REQ signal from T20. The signal must be enabled
+	 * before the CPCAP uC firmware is started. */
+	pmc_ctrl = readl(IO_ADDRESS(TEGRA_PMC_BASE));
+	pmc_ctrl |= 0x00000200;
+	writel(pmc_ctrl, IO_ADDRESS(TEGRA_PMC_BASE));
+
+	printk(KERN_INFO "pICS_%s: step 1...\n",__func__);
 	/* CPCAP standby lines connected to CPCAP GPIOs on Etna P1B & Olympus P2 */
 	if ( HWREV_TYPE_IS_FINAL(system_rev) ||
 	     (machine_is_etna() &&
@@ -1260,13 +1312,9 @@ void __init olympus_power_init(void)
 		tegra_cpcap_data.wdt_disable = 1;
 	}
 
-	/* Enable CORE_PWR_REQ signal from T20. The signal must be enabled
-	 * before the CPCAP uC firmware is started. */
-	if(0==1) {
-	pmc_cntrl_0 = readl(IO_ADDRESS(TEGRA_PMC_BASE));
-	pmc_cntrl_0 |= 0x00000200;
-	writel(pmc_cntrl_0, IO_ADDRESS(TEGRA_PMC_BASE));
-	}
+	tegra_gpio_enable(TEGRA_GPIO_PT2);
+	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
+	gpio_direction_output(TEGRA_GPIO_PT2, 0);
 
 	spi_register_board_info(tegra_spi_devices, ARRAY_SIZE(tegra_spi_devices));
 
@@ -1279,6 +1327,7 @@ void __init olympus_power_init(void)
 		error = platform_device_register(&fixed_regulator_devices[i]);
 		pr_info("Registered reg-fixed-voltage: %d result: %d\n", i, error);
 	}
+	(void) platform_driver_register(&cpcap_usb_connected_driver);
 
 #ifdef CONFIG_REGULATOR_VIRTUAL_CONSUMER
 	(void) platform_device_register(&cpcap_reg_virt_vcam);
@@ -1286,6 +1335,8 @@ void __init olympus_power_init(void)
 	(void) platform_device_register(&cpcap_reg_virt_vcsi_2);
 	(void) platform_device_register(&cpcap_reg_virt_sw5);
 #endif
+
+	tegra_init_suspend(&olympus_suspend_data);
 }
 
 static int disable_rtc_alarms(struct device *dev, void *data)

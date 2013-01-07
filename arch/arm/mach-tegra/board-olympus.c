@@ -282,59 +282,10 @@ static char oly_unused_pins_p1[] = {
         TEGRA_GPIO_PD1,
 };
 #endif
-extern void __init tegra_register_socdev(void);
-
-/* 
- * List of i2c devices
- */
-/* IMPORTANT: backlight has to be first, don't move it!!! */
-static struct i2c_board_info tegra_i2c_bus0_board_info[] = {
-	[BACKLIGHT_DEV] = { /* Display backlight */
-		I2C_BOARD_INFO(LM3532_NAME, LM3532_I2C_ADDR),
-		.platform_data = &lm3532_pdata,
-		/*.irq = ..., */
-	},
-	[TOUCHSCREEN_DEV] = {
-		/* XMegaT touchscreen driver */
-		I2C_BOARD_INFO(QTOUCH_TS_NAME, XMEGAT_I2C_ADDR),
-		.irq = TOUCH_GPIO_INTR,
-		.platform_data = &ts_platform_olympus_p_1_43,
-	},
-
-#if defined(CONFIG_TEGRA_ODM_OLYMPUS)
-	{
-		/*  ISL 29030 (prox/ALS) driver */
-		I2C_BOARD_INFO(LD_ISL29030_NAME, 0x44),
-		.platform_data = &isl29030_als_ir_data_Olympus,
-		.irq = 180,
-	},
-#endif
-
-};
-static struct i2c_board_info tegra_i2c_bus3_board_info[] = {
-	{
-		I2C_BOARD_INFO("akm8975", 0x0C),
-		.platform_data = &akm8975_data,
-		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PE2),
-	},
-	{
-		I2C_BOARD_INFO("kxtf9", 0x0F),
-		.platform_data = &kxtf9_data,
-	},
-};
-
-static struct tegra_suspend_platform_data olympus_suspend = {
-	.cpu_timer = 1500,
-	.cpu_off_timer = 1,
-	.core_timer = 0x7e7e,
-	.core_off_timer = 0xf,
-        .corereq_high = true,
-	.sysclkreq_high = true,
-	.suspend_mode = TEGRA_SUSPEND_LP0,
-};
 
 static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
 	/* name		parent		rate		enabled */  
+#if 0
 	{ "twd",        NULL,           62500000,	true}, 
 	{ "usb3",	"clk_m",	26000000,	false},
 	{ "usbd",	"clk_m",	26000000,	true},
@@ -381,8 +332,9 @@ static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
 	{ "pll_m",	"clk_m",	600000000,	true},
 	{ "emc",	"pll_m",	600000000,	true},
 	{ "uartc",	"pll_m",	600000000,	true},
-/*	{ "sbc",	"pll_m",	100000000,	true},*/
+	{ "sbc1",	"pll_m",	100000000,	true},
 	{ "emc",	"pll_m",	100000000,	true},
+#endif
 	{ "pwm",	"clk_32k",	32768,		false},
 	{ "kbc",	"clk_32k",	32768,		true},
 	{ "rtc",	"clk_32k",	32768,		true},
@@ -490,61 +442,48 @@ void __init config_gpios(void)
 
 static void __init tegra_mot_init(void)
 {
-	tegra_init_suspend(&olympus_suspend);
+	struct clk *clk;
 
 	tegra_clk_init_from_table(olympus_clk_init_table);
 
 	olympus_emc_init();
 
-	tegra_gpio_enable(TEGRA_GPIO_PV6);
-	gpio_request(TEGRA_GPIO_PV6, "usb_data_en");
-	gpio_direction_output(TEGRA_GPIO_PV6, 1);
-
 	/* Olympus has a USB switch that disconnects the usb port from the AP20
 	   unless a factory cable is used, the factory jumper is set, or the
 	   usb_data_en gpio is set.
 	 */
-/*	tegra_gpio_enable(TEGRA_GPIO_PT2);
-	gpio_request(TEGRA_GPIO_PV6, "usb_host_pwr_en");
-	gpio_direction_output(TEGRA_GPIO_PT2, 1);*/
+	tegra_gpio_enable(TEGRA_GPIO_PV6);
+	gpio_request(TEGRA_GPIO_PV6, "usb_data_en");
+	gpio_direction_output(TEGRA_GPIO_PV6, 1);
 
 	olympus_pinmux_init();
 
+	clk = clk_get_sys("3d", NULL);
+	tegra_periph_reset_assert(clk);
+	writel(0x101, IO_ADDRESS(TEGRA_PMC_BASE) + 0x30);
+	clk_enable(clk);
+
+	udelay(10);
+	writel(1 << 1, IO_ADDRESS(TEGRA_PMC_BASE) + 0x34);
+	tegra_periph_reset_deassert(clk);
+	clk_put(clk);
+
 	olympus_devices_init();
+
+	olympus_keypad_init();
+
+	olympus_i2c_init();
 
 	tegra_ram_console_debug_init();
 
-	tegra_register_socdev();
-
 	config_gpios();
 
-#if 0
-#ifdef CONFIG_APANIC_RAM
-	apanic_ram_init();
-#endif
-
-
-#ifdef CONFIG_APANIC_MMC
-	apanic_mmc_init();
-#endif
-#endif
-
-	olympus_power_init();
-
-	mot_setup_lights(&tegra_i2c_bus0_board_info[BACKLIGHT_DEV]);
-	mot_setup_touch(&tegra_i2c_bus0_board_info[TOUCHSCREEN_DEV]);
-
-/*	mot_sec_init();
-	mot_tcmd_init();*/
+/*	mot_setup_lights(&tegra_i2c_bus0_board_info[BACKLIGHT_DEV]);
+	mot_setup_touch(&tegra_i2c_bus0_board_info[TOUCHSCREEN_DEV]);*/
 
 	olympus_panel_init();
 
 /*	mot_setup_gadget();*/
-
-/*	tegra_uart_platform[UART_IPC_OLYMPUS].uart_ipc = 1;
-	tegra_uart_platform[UART_IPC_OLYMPUS].uart_wake_host = TEGRA_GPIO_PA0;
-	tegra_uart_platform[UART_IPC_OLYMPUS].uart_wake_request = TEGRA_GPIO_PF1;
-	tegra_uart_platform[UART_IPC_OLYMPUS].peer_register = mot_mdm_ctrl_peer_register;*/
 
 	if( (bi_powerup_reason() & PWRUP_FACTORY_CABLE) &&
 	    (bi_powerup_reason() != PWRUP_INVALID) ){
@@ -553,26 +492,10 @@ static void __init tegra_mot_init(void)
 #endif
 	}
 
-	mot_modem_init();
-
-	(void) platform_driver_register(&cpcap_usb_connected_driver);
+/*	mot_modem_init();*/
 
 /*	mot_wlan_init();
-	mot_sensors_init();
-
-	mot_nvodmcam_init();*/
-
-	printk("%s: registering i2c devices...\n", __func__);
-
-	if(!(bi_powerup_reason() & PWRUP_BAREBOARD)) {
-		printk("bus 0: %d devices\n", ARRAY_SIZE(tegra_i2c_bus0_board_info));
-		i2c_register_board_info(0, tegra_i2c_bus0_board_info, 
-								ARRAY_SIZE(tegra_i2c_bus0_board_info));
-	}
-	printk("bus 3: %d devices\n", ARRAY_SIZE(tegra_i2c_bus3_board_info));
-	i2c_register_board_info(3, tegra_i2c_bus3_board_info, 
-							ARRAY_SIZE(tegra_i2c_bus3_board_info));
-
+	mot_sensors_init();*/
 
 	pm_power_off = mot_system_power_off;
 	if (0==1) tegra_setup_bluesleep();
@@ -586,6 +509,8 @@ static void __init tegra_mot_init(void)
 	gpio_request(TEGRA_GPIO_PD4, "spdif_enable");
 	gpio_direction_output(TEGRA_GPIO_PD4, 0);
 	gpio_export(TEGRA_GPIO_PD4, false);
+
+	olympus_power_init();
 #if 0
 	if ((HWREV_TYPE_IS_PORTABLE(system_rev) || HWREV_TYPE_IS_FINAL(system_rev)))
 	{

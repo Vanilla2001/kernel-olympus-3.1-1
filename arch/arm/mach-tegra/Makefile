@@ -204,7 +204,6 @@ obj-y                                   += eeprom-wifi-mac.o
 obj-${CONFIG_TEGRA_BB_XMM_POWER}        += baseband-xmm-power.o
 obj-${CONFIG_TEGRA_BB_XMM_POWER2}       += baseband-xmm-power2.o
 
-obj-${CONFIG_MACH_OLYMPUS}             += board-common.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-devices.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-pinmux.o
@@ -213,6 +212,7 @@ obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-lights.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-misc.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-keypad.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-modem.o
+obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-i2c.o
 #obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-wifi.o
 obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-sensors.o
 #obj-${CONFIG_MACH_OLYMPUS}             += board-olympus-wlan_nvs.o

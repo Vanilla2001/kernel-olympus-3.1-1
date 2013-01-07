@@ -24,84 +24,95 @@
 #include "gpio-names.h"
 #include "board-olympus.h"
 
-#if 0
-#if defined(CONFIG_APANIC_MMC) || defined(CONFIG_APANIC_RAM)
-#include <mach/apanic.h>
-#endif
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/platform_device.h>
+#include <linux/clk.h>
+#include <linux/serial_8250.h>
+#include <linux/io.h>
+#include <linux/ctype.h>
+#include <linux/dma-mapping.h>
+#include <linux/fsl_devices.h>
+#include <linux/mtd/partitions.h>
 
-#ifdef CONFIG_APANIC_MMC
+#include <mach/iomap.h>
+#include <mach/irqs.h>
 
-static struct tegra_sdhci_simple_platform_data tegra_sdhci_simple_platform_data;
-static struct platform_device tegra_sdhci_simple_device;
+#include <mach/kbc.h>
+#include <mach/nand.h>
+#include <mach/sdhci.h>
 
-static struct apanic_mmc_platform_data apanic_mmc_platform_data;
+#if defined(CONFIG_MTD_NAND_TEGRA) || defined(CONFIG_EMBEDDED_MMC_START_OFFSET)
+#define MAX_MTD_PARTNR 16
+static struct mtd_partition tegra_mtd_partitions[MAX_MTD_PARTNR];
 
-static struct platform_device apanic_handle_mmc_platform_device = {
-	.name          = "apanic_handle_mmc",
-	.id            = 0,
-	.dev =
-	{
-		.platform_data = &apanic_mmc_platform_data,
-	}
+struct tegra_nand_platform tegra_nand_plat = {
+	.parts = tegra_mtd_partitions,
+	.nr_parts = 0,
 };
 
-extern struct tegra_nand_platform tegra_nand_plat;
-extern int tegra_sdhci_boot_device;
-extern struct platform_device tegra_sdhci_devices[];
-
-int apanic_mmc_init(void)
+static int __init tegrapart_setup(char *options)
 {
-	int i;
-	int result = -ENOMEM;
+	char *str = options;
 
-	/*
-	 * This is a little convoluted, but the simple driver needs to map the
-	 * I/O port and access other resources in order to use the hardware.
-	 * It can't do it through the normal means or else the kernel will try
-	 * to claim the same resources as the real sdhci-tegra driver at boot.
-	 */
-	if (tegra_sdhci_boot_device >= 0) {
-		tegra_sdhci_simple_platform_data.sdhci_pdata =
-			tegra_sdhci_devices[tegra_sdhci_boot_device].dev.platform_data;
-		tegra_sdhci_simple_platform_data.resource =
-			tegra_sdhci_devices[tegra_sdhci_boot_device].resource;
-		tegra_sdhci_simple_platform_data.num_resources =
-			tegra_sdhci_devices[tegra_sdhci_boot_device].num_resources;
-		tegra_sdhci_simple_platform_data.clk_dev_name =
-			kasprintf(GFP_KERNEL, "tegra-sdhci.%d", tegra_sdhci_boot_device);
+	if (!options || !*options)
+		return 0;
 
-		tegra_sdhci_simple_device.id = tegra_sdhci_boot_device;
-		tegra_sdhci_simple_device.name = "tegra-sdhci-simple";
-		tegra_sdhci_simple_device.dev.platform_data =
-				&tegra_sdhci_simple_platform_data;
+	while (tegra_nand_plat.nr_parts < ARRAY_SIZE(tegra_mtd_partitions)) {
+		struct mtd_partition *part;
+		unsigned long long start, length, sector_sz;
+		char *tmp = str;
 
-		result = platform_device_register(&tegra_sdhci_simple_device);
-	}
+		part = &tegra_nand_plat.parts[tegra_nand_plat.nr_parts];
 
-	/*
-	 * FIXME: There is no way to "discover" the kpanic partition because
-	 * it has no file system and the legacy MBR/EBR tables do not support
-	 * labels.  GPT promises to address this in K35 or later.
-	 */
-	if (result == 0) {
-		apanic_mmc_platform_data.id = 0;  /* mmc0 - not used by sdhci-tegra-simple */
-		for (i = 0; i < tegra_nand_plat.nr_parts; i++) {
-			if (strcmp(CONFIG_APANIC_PLABEL, tegra_nand_plat.parts[i].name))
-				continue;
-			apanic_mmc_platform_data.sector_size = 512;  /* fixme */
-			apanic_mmc_platform_data.start_sector =
-					tegra_nand_plat.parts[i].offset / 512;
-			apanic_mmc_platform_data.sectors =
-					tegra_nand_plat.parts[i].size / 512;
+		while (*tmp && !isspace(*tmp) && *tmp!=':')
+			tmp++;
+
+		if (tmp==str || *tmp!=':') {
+			pr_err("%s: improperly formatted string %s\n",
+			       __func__, options);
 			break;
 		}
 
-		result = platform_device_register(&apanic_handle_mmc_platform_device);
+		part->name = str;
+		*tmp = 0;
+
+		str = tmp+1;
+		start = simple_strtoull(str, &tmp, 16);
+		if (*tmp!=':')
+			break;
+		str = tmp+1;
+		length = simple_strtoull(str, &tmp, 16);
+		if (*tmp!=':')
+			break;
+		str = tmp+1;
+		sector_sz = simple_strtoull(str, &tmp, 16);
+
+		start *= sector_sz;
+		length *= sector_sz;
+		part->offset = start;
+		part->size = length;
+
+		pr_info("%s: %s at offset 0x%llx %llukB\n", __func__, part->name,
+			part->offset, part->size / 1024);
+
+		tegra_nand_plat.nr_parts++;
+		str = tmp+1;
+
+		if (*tmp!=',')
+			break;
 	}
 
-	return result;
+	/* clean up if the last partition was parsed incorrectly */
+	if (tegra_nand_plat.nr_parts < ARRAY_SIZE(tegra_mtd_partitions) &&
+	    tegra_mtd_partitions[tegra_nand_plat.nr_parts].name) {
+		kfree(tegra_mtd_partitions[tegra_nand_plat.nr_parts].name);
+		tegra_mtd_partitions[tegra_nand_plat.nr_parts].name = NULL;
+	}
+
+	return 0;
 }
-#endif
+__setup("tegrapart=", tegrapart_setup);
 #endif
 
 /* NVidia bootloader tags and parsing routines */
