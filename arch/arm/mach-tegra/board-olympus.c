@@ -65,7 +65,7 @@
 #define PWRUP_INVALID               0xFFFFFFFF
 #define PWRUP_BAREBOARD             0x00100000 /* Bit 20 */
 
-#if 0
+
 static char oly_unused_pins_p3[] = {
         TEGRA_GPIO_PO1,
         TEGRA_GPIO_PO2,
@@ -281,7 +281,6 @@ static char oly_unused_pins_p1[] = {
         TEGRA_GPIO_PV7,
         TEGRA_GPIO_PD1,
 };
-#endif
 
 static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
 	/* name		parent		rate		enabled */  
@@ -319,10 +318,10 @@ static __initdata struct tegra_clk_init_table olympus_clk_init_table[] = {
 	{ "pll_a_out0",	"pll_a",	11289600,	false},
 	{ "spdif_out",	"pll_a_out0",	11289600,	false},
 	{ "pll_c",	"clk_m",	600000000,	true},
-	{ "mpe",	"pll_c",	300000000,	false},
-	{ "epp",	"pll_c",	300000000,	false},
-	{ "vi",		"pll_c",	100000000,	false},  
-	{ "2d",		"pll_c",	300000000,	false},
+	{ "mpe",	"pll_c",	300000000,	true},
+	{ "epp",	"pll_c",	300000000,	true},
+	{ "vi",		"pll_c",	100000000,	true},  
+	{ "2d",		"pll_c",	300000000,	true},
 	{ "3d",		"pll_c",	300000000,	true},
 	{ "sbc2",	"pll_c",	31578947,	true},
 	{ "pll_c_out1",	"pll_c",	80000000,	true},
@@ -393,7 +392,7 @@ fail:
 #else
 static inline void tegra_setup_bluesleep(void) { }
 #endif
-#if 0
+
 static int config_unused_pins(char *pins, int num)
 {
         int i, ret = 0;
@@ -416,10 +415,10 @@ static int config_unused_pins(char *pins, int num)
 
         return ret;
 }
-#endif
+
 void __init config_gpios(void)
 {
-/*	tegra_gpio_enable(TEGRA_GPIO_PF2);
+	tegra_gpio_enable(TEGRA_GPIO_PF2);
 	gpio_request(TEGRA_GPIO_PF2, "spi_gpio_srdy");
 	gpio_direction_output(TEGRA_GPIO_PF2, 1);
 	tegra_gpio_enable(TEGRA_GPIO_PF3);
@@ -439,12 +438,12 @@ void __init config_gpios(void)
 	gpio_direction_output(TEGRA_GPIO_PM2,1);
 	tegra_gpio_enable(TEGRA_GPIO_PT2);
 	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
-	gpio_direction_output(TEGRA_GPIO_PT2,0);*/
+	gpio_direction_output(TEGRA_GPIO_PT2,0);
 }
 
 static void __init tegra_mot_init(void)
 {
-	struct clk *clk;
+/*	struct clk *clk;*/
 
 	tegra_clk_init_from_table(olympus_clk_init_table);
 
@@ -454,12 +453,13 @@ static void __init tegra_mot_init(void)
 	   unless a factory cable is used, the factory jumper is set, or the
 	   usb_data_en gpio is set.
 	 */
+/*
 	tegra_gpio_enable(TEGRA_GPIO_PV6);
 	gpio_request(TEGRA_GPIO_PV6, "usb_data_en");
-	gpio_direction_output(TEGRA_GPIO_PV6, 1);
+	gpio_direction_output(TEGRA_GPIO_PV6, 1);*/
 
 	olympus_pinmux_init();
-
+/*
 	clk = clk_get_sys("3d", NULL);
 	tegra_periph_reset_assert(clk);
 	writel(0x101, IO_ADDRESS(TEGRA_PMC_BASE) + 0x30);
@@ -469,7 +469,7 @@ static void __init tegra_mot_init(void)
 	writel(1 << 1, IO_ADDRESS(TEGRA_PMC_BASE) + 0x34);
 	tegra_periph_reset_deassert(clk);
 	clk_put(clk);
-
+*/
 	olympus_devices_init();
 
 	olympus_keypad_init();
@@ -478,7 +478,7 @@ static void __init tegra_mot_init(void)
 
 	tegra_ram_console_debug_init();
 
-	config_gpios();
+	if (0==1) config_gpios();
 
 /*	mot_setup_lights(&tegra_i2c_bus0_board_info[BACKLIGHT_DEV]);
 	mot_setup_touch(&tegra_i2c_bus0_board_info[TOUCHSCREEN_DEV]);*/
@@ -513,7 +513,7 @@ static void __init tegra_mot_init(void)
 	gpio_export(TEGRA_GPIO_PD4, false);
 
 	olympus_power_init();
-#if 0
+
 	if ((HWREV_TYPE_IS_PORTABLE(system_rev) || HWREV_TYPE_IS_FINAL(system_rev)))
 	{
 		if (HWREV_REV(system_rev) >= HWREV_REV_1 && HWREV_REV(system_rev) < HWREV_REV_2)
@@ -532,7 +532,7 @@ static void __init tegra_mot_init(void)
 			config_unused_pins(oly_unused_pins_p3, ARRAY_SIZE(oly_unused_pins_p3));
 		}
 	}
-#endif
+
 	tegra_release_bootloader_fb();
 }
 

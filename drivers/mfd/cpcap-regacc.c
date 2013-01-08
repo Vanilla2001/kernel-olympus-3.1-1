@@ -443,7 +443,7 @@ static int cpcap_spi_access(struct spi_device *spi, u8 *buf,
 	spi_message_init(&m);
 	printk(KERN_INFO "pICS_%s: step 2...\n",__func__);
 	spi_message_add_tail(&t, &m);
-	printk(KERN_INFO "pICS_%s: step 2...\n",__func__);
+	printk(KERN_INFO "pICS_%s: step 3...\n",__func__);
 	return spi_sync(spi, &m);
 }
 

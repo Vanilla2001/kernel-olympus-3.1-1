@@ -29,6 +29,10 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#ifdef CONFIG_PM_DEEPSLEEP
+#include <linux/suspend.h>
+#endif
+
 #define NUM_INT_REGS      5
 #define NUM_INTS_PER_REG  16
 
@@ -157,7 +161,31 @@ struct pwrkey_data {
 	struct cpcap_device *cpcap;
 	enum pwrkey_states state;
 	struct wake_lock wake_lock;
+#ifdef CONFIG_PM_DEEPSLEEP
+	struct hrtimer longPress_timer;
+	int expired;
+#endif
+	struct delayed_work pwrkey_delayed_work;
 };
+
+#ifdef CONFIG_PM_DEEPSLEEP
+static enum hrtimer_restart longPress_timer_callback(struct hrtimer *timer)
+{
+	struct pwrkey_data *pwrkey_data  =
+		container_of(timer, struct pwrkey_data, longPress_timer);
+	struct cpcap_device *cpcap = pwrkey_data->cpcap;
+	enum pwrkey_states new_state = PWRKEY_PRESS;
+
+	wake_lock_timeout(&pwrkey_data->wake_lock, 20);
+
+
+	pwrkey_data->expired = 1;
+	cpcap_broadcast_key_event(cpcap, KEY_END, new_state);
+	pwrkey_data->state = new_state;
+
+	return HRTIMER_NORESTART;
+}
+#endif
 
 static void pwrkey_handler(enum cpcap_irqs irq, void *data)
 {
@@ -167,8 +195,28 @@ static void pwrkey_handler(enum cpcap_irqs irq, void *data)
 
 	new_state = (enum pwrkey_states) cpcap_irq_sense(cpcap, irq, 0);
 
-
+#ifdef CONFIG_PM_DEEPSLEEP
+	if (get_deepsleep_mode()) {
+		cancel_delayed_work_sync(&pwrkey_data->pwrkey_delayed_work);
+		if (new_state == PWRKEY_RELEASE) {
+			hrtimer_cancel(&pwrkey_data->longPress_timer);
+			wake_lock_timeout(&pwrkey_data->wake_lock, 20);
+			if (pwrkey_data->expired == 1) {
+				pwrkey_data->expired = 0;
+				cpcap_broadcast_key_event(cpcap,
+						KEY_END, new_state);
+				pwrkey_data->state = new_state;
+			}
+		} else if (new_state == PWRKEY_PRESS) {
+			pwrkey_data->expired = 0;
+			hrtimer_start(&pwrkey_data->longPress_timer,
+				ktime_set(2, 0), HRTIMER_MODE_REL);
+			wake_lock_timeout(&pwrkey_data->wake_lock, 2*HZ+5);
+		}
+	} else if ((new_state < PWRKEY_UNKNOWN) && (new_state != last_state)) {
+#else
 	if ((new_state < PWRKEY_UNKNOWN) && (new_state != last_state)) {
+#endif
 		wake_lock_timeout(&pwrkey_data->wake_lock, 20);
 		cpcap_broadcast_key_event(cpcap, KEY_END, new_state);
 		pwrkey_data->state = new_state;
@@ -183,6 +231,16 @@ static void pwrkey_handler(enum cpcap_irqs irq, void *data)
 	cpcap_irq_unmask(cpcap, CPCAP_IRQ_ON);
 }
 
+static void pwrkey_delayed_work_func(struct work_struct *pwrkey_delayed_work)
+{
+	struct pwrkey_data *pwrkey_data =
+	       container_of(pwrkey_delayed_work,
+			    struct pwrkey_data,
+			    pwrkey_delayed_work.work);
+
+	cpcap_broadcast_key_event(pwrkey_data->cpcap, KEY_END, PWRKEY_RELEASE);
+}
+
 static int pwrkey_init(struct cpcap_device *cpcap)
 {
 	struct pwrkey_data *data = kmalloc(sizeof(struct pwrkey_data),
@@ -193,10 +251,17 @@ static int pwrkey_init(struct cpcap_device *cpcap)
 		return -ENOMEM;
 	data->cpcap = cpcap;
 	data->state = PWRKEY_RELEASE;
+	INIT_DELAYED_WORK(&data->pwrkey_delayed_work, pwrkey_delayed_work_func);
 	retval = cpcap_irq_register(cpcap, CPCAP_IRQ_ON, pwrkey_handler, data);
 	if (retval)
 		kfree(data);
 	wake_lock_init(&data->wake_lock, WAKE_LOCK_SUSPEND, "pwrkey");
+#ifdef CONFIG_PM_DEEPSLEEP
+	hrtimer_init(&(data->longPress_timer),
+			CLOCK_MONOTONIC,
+			HRTIMER_MODE_REL);
+	(data->longPress_timer).function = longPress_timer_callback;
+#endif
 	return retval;
 }
 
@@ -209,6 +274,7 @@ static void pwrkey_remove(struct cpcap_device *cpcap)
 		return;
 	cpcap_irq_free(cpcap, CPCAP_IRQ_ON);
 	wake_lock_destroy(&data->wake_lock);
+	cancel_delayed_work_sync(&data->pwrkey_delayed_work);
 	kfree(data);
 }
 
@@ -636,9 +702,13 @@ int cpcap_irq_suspend(struct cpcap_device *cpcap)
 {
 	struct spi_device *spi = cpcap->spi;
 	struct cpcap_irqdata *data = cpcap->irqdata;
+	struct pwrkey_data *pwrkey_data = NULL;
 
 	disable_irq(spi->irq);
 	flush_work(&data->work);
+	cpcap_irq_get_data(cpcap, CPCAP_IRQ_ON, (void **)&pwrkey_data);
+	if (pwrkey_data)
+		cancel_delayed_work_sync(&pwrkey_data->pwrkey_delayed_work);
 	return 0;
 }
 

@@ -770,8 +770,9 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 			|| (spi->mode & SPI_3WIRE)) {
 		struct spi_transfer *xfer;
 		unsigned flags = master->flags;
-
+		printk("pICS_%s: step 1... ", __func__);
 		list_for_each_entry(xfer, &message->transfers, transfer_list) {
+			printk("pICS_%s: step 2... ", __func__);
 			if (xfer->rx_buf && xfer->tx_buf)
 				return -EINVAL;
 			if ((flags & SPI_MASTER_NO_TX) && xfer->tx_buf)
@@ -903,11 +904,13 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 	message->complete = spi_complete;
 	message->context = &done;
 
-	if (!bus_locked)
+	if (!bus_locked) {	
+		printk(KERN_INFO "pICS_%s: step 2...\n",__func__);
 		mutex_lock(&master->bus_lock_mutex);
-	printk(KERN_INFO "pICS_%s: step 2...\n",__func__);
-	status = spi_async_locked(spi, message);
+	}
 	printk(KERN_INFO "pICS_%s: step 3...\n",__func__);
+	status = spi_async_locked(spi, message);
+	printk(KERN_INFO "pICS_%s: step 4...\n",__func__);
 	if (!bus_locked)
 		mutex_unlock(&master->bus_lock_mutex);
 
@@ -916,7 +919,7 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message,
 		status = message->status;
 	}
 	message->context = NULL;
-	printk(KERN_INFO "pICS_%s: step 4...\n",__func__);
+	printk(KERN_INFO "pICS_%s: step 5...\n",__func__);
 	return status;
 }
 

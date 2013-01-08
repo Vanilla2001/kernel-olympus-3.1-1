@@ -1087,7 +1087,7 @@ struct spi_board_info tegra_spi_devices[] __initdata = {
         .mode = SPI_MODE_0,
         .max_speed_hz = 8000000,
         .controller_data = &tegra_cpcap_data,
-        .irq = INT_EXTERNAL_PMU,
+        .irq = 118,
     },
 };
 
@@ -1231,7 +1231,7 @@ static struct platform_device cpcap_reg_virt_sw5 =
 static struct tegra_suspend_platform_data olympus_suspend_data = {
 	.cpu_timer 	= 800,
 	.cpu_off_timer	= 600,
-	.suspend_mode	= TEGRA_SUSPEND_LP0,
+	.suspend_mode	= TEGRA_SUSPEND_LP1,
 	.core_timer	= 1842,
 	.core_off_timer = 31,
 	.corereq_high	= true,
@@ -1240,7 +1240,7 @@ static struct tegra_suspend_platform_data olympus_suspend_data = {
 
 void __init olympus_suspend_init(void)
 {
-
+#if 0
 	printk(KERN_INFO "pICS_%s: wake PL1 (irq nr %d)...\n",__func__, TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PL1));
 		/*	enable_irq(TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PL1));
 			printk(KERN_INFO "pICS_%s: enabled PL1 irq...\n",__func__);*/
@@ -1283,7 +1283,9 @@ printk(KERN_INFO "pICS_%s: step PWR (GPIO nr %d)...\n",__func__, TEGRA_IRQ_TO_GP
 			printk(KERN_INFO "pICS_%s: enabled PV2 irq...\n",__func__);*/
 			enable_irq_wake(TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV2));
 			printk(KERN_INFO "pICS_%s: enabled PV2 wake...\n",__func__);
-
+#endif
+	enable_irq_wake(118);
+	
 	tegra_init_suspend(&olympus_suspend_data);
 }
 
@@ -1307,13 +1309,13 @@ void __init olympus_power_init(void)
 	 * interrupts when low */
 	pmc_ctrl = readl(pmc + PMC_CTRL);
 	writel(pmc_ctrl | PMC_CTRL_INTR_LOW, pmc + PMC_CTRL);
-
+#if 0
 	/* Enable CORE_PWR_REQ signal from T20. The signal must be enabled
 	 * before the CPCAP uC firmware is started. */
 	pmc_ctrl = readl(IO_ADDRESS(TEGRA_PMC_BASE));
 	pmc_ctrl |= 0x00000200;
 	writel(pmc_ctrl, IO_ADDRESS(TEGRA_PMC_BASE));
-
+#endif
 	printk(KERN_INFO "pICS_%s: step in...\n",__func__);
 	
 	/* CPCAP standby lines connected to CPCAP GPIOs on Etna P1B & Olympus P2 */
@@ -1352,11 +1354,11 @@ void __init olympus_power_init(void)
 	    HWREV_TYPE_IS_MORTABLE(system_rev) ){
 		tegra_cpcap_data.wdt_disable = 1;
 	}
-
+/*
 	tegra_gpio_enable(TEGRA_GPIO_PT2);
 	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
 	gpio_direction_output(TEGRA_GPIO_PT2, 0);
-
+*/
 	printk(KERN_INFO "pICS_%s: step in 2...\n",__func__);
 
 	spi_register_board_info(tegra_spi_devices, ARRAY_SIZE(tegra_spi_devices));

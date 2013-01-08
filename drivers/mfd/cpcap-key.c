@@ -24,7 +24,7 @@
 #include <linux/spi/cpcap.h>
 #include <linux/spi/cpcap-regbits.h>
 
-
+#define DUMP_WAKELOCK_WHILE_POWERKEY 1
 
 struct cpcap_key_data {
 	struct input_dev *input_dev;
